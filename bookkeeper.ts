@@ -1,5 +1,5 @@
-import fs from 'fs';
-import { createWorker } from 'tesseract.js';
+const fs = require('fs');
+const { createWorker } = require('tesseract.js');
 
 interface Item {
   name: string;

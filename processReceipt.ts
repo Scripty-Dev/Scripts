@@ -1,5 +1,5 @@
-const fs = require('fs')
-const { createWorker } = require('tesseract.js')
+import fs from 'fs';
+import { createWorker } from 'tesseract.js';
 
 interface Item {
   name: string;
@@ -13,125 +13,201 @@ interface DocumentInfo {
   items: Item[];
   subtotal: string;
   date: string;
+  total: string;
 }
 
 function parseDocument(text: string): DocumentInfo {
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    const info: DocumentInfo = {
-      type: 'receipt',
-      title: '',
-      invoiceNumber: '',
-      items: [],
-      subtotal: '',
-      date: ''
-    };
-  
-    // Extract store name (Walmart in this case)
-    const storeNameIndex = lines.findIndex(line => line.toLowerCase().includes('walmart'));
-    if (storeNameIndex !== -1) {
-      info.title = 'Walmart';
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  const info: DocumentInfo = {
+    type: 'receipt',
+    title: '',
+    invoiceNumber: '',
+    items: [],
+    subtotal: '',
+    date: '',
+    total: ''
+  };
+
+  // Determine document type and extract basic info
+  if (text.toLowerCase().includes('invoice')) {
+    info.type = 'invoice';
+    info.title = extractCompanyName(lines);
+    info.invoiceNumber = extractInvoiceNumber(lines);
+  } else {
+    info.type = 'receipt';
+    info.title = extractStoreName(lines);
+  }
+
+  let itemsStarted = false;
+  const itemRegex = /^(.+?)\s+\$?(\d+\.\d{2})\s*[DJP]?$/i;
+
+  for (const line of lines) {
+    // Extract date
+    if (!info.date) {
+      info.date = extractDate(line);
     }
-  
-    let itemsStarted = false;
-    const itemRegex = /^(.+?)\s+\$?(\d+\.\d{2})\s*[DJP]?$/i;
-  
-    for (const line of lines) {
-      if (line.toLowerCase().includes('subtotal')) {
-        const subtotalMatch = line.match(/(\d+\.\d{2})/);
-        if (subtotalMatch) {
-          info.subtotal = subtotalMatch[1];
-        }
-        break;
-      }
-  
-      if (itemsStarted || line.match(/^\d{6,}/)) {
-        const match = line.match(itemRegex);
-        if (match) {
-          let itemName = match[1].trim();
-          const price = match[2];
-  
-          itemName = itemName.replace(/\s+\d+(?:\s+\d+)*\s+/g, ' ').trim();
-  
-          info.items.push({
-            name: itemName,
-            price: price
-          });
-        }
-      } else if (line.toLowerCase().includes('st#') || line.toLowerCase().includes('te#')) {
-        itemsStarted = true;
+
+    // Extract total
+    if (line.toLowerCase().includes('total')) {
+      const totalMatch = line.match(/(\d+\.\d{2})/);
+      if (totalMatch) {
+        info.total = totalMatch[1];
       }
     }
 
-    // Extract date (trying multiple formats)
-    const dateFormats = [
-      /(\d{2}\/\d{2}\/\d{2,4})/,
-      /(\d{2}\/\d{2}\/\d{2})\s+\d{2}:\d{2}:\d{2}/,
-      /(\d{4}-\d{2}-\d{2})/
-    ];
-
-    for (const format of dateFormats) {
-      const dateMatch = text.match(format);
-      if (dateMatch) {
-        info.date = dateMatch[1];
-        break;
+    // Extract subtotal
+    if (line.toLowerCase().includes('subtotal')) {
+      const subtotalMatch = line.match(/(\d+\.\d{2})/);
+      if (subtotalMatch) {
+        info.subtotal = subtotalMatch[1];
       }
     }
 
-    return info;  // Return the parsed document info
+    // Extract items
+    if (itemsStarted || line.match(/^\d{6,}/) || (info.type === 'invoice' && line.includes('$'))) {
+      const match = line.match(itemRegex);
+      if (match) {
+        let itemName = match[1].trim();
+        const price = match[2];
+
+        itemName = itemName.replace(/\s+\d+(?:\s+\d+)*\s+/g, ' ').trim();
+
+        info.items.push({
+          name: itemName,
+          price: price
+        });
+      }
+    } else if (line.toLowerCase().includes('st#') || line.toLowerCase().includes('te#') || line.toLowerCase().includes('item')) {
+      itemsStarted = true;
+    }
+  }
+
+  return info;
 }
 
-async function scanAndParseDocument(imagePath: string): Promise<DocumentInfo> {
+function extractCompanyName(lines: string[]): string {
+  // Simple heuristic: assume company name is in the first few lines
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    if (lines[i].length > 3 && !lines[i].match(/invoice|payment|receipt/i)) {
+      return lines[i];
+    }
+  }
+  return '';
+}
+
+function extractStoreName(lines: string[]): string {
+  const storeNameIndex = lines.findIndex(line => 
+    line.toLowerCase().includes('walmart') || 
+    line.toLowerCase().includes('store') || 
+    line.toLowerCase().includes('market')
+  );
+  return storeNameIndex !== -1 ? lines[storeNameIndex] : '';
+}
+
+function extractInvoiceNumber(lines: string[]): string {
+  const invoiceLineIndex = lines.findIndex(line => 
+    line.toLowerCase().includes('invoice') && line.includes('#')
+  );
+  if (invoiceLineIndex !== -1) {
+    const match = lines[invoiceLineIndex].match(/#\s*(\d+)/);
+    return match ? match[1] : '';
+  }
+  return '';
+}
+
+function extractDate(line: string): string {
+  const dateFormats = [
+    /(\d{2}\/\d{2}\/\d{2,4})/,
+    /(\d{2}\/\d{2}\/\d{2})\s+\d{2}:\d{2}:\d{2}/,
+    /(\d{4}-\d{2}-\d{2})/,
+    /(\w+ \d{1,2},? \d{4})/  // e.g., May 21, 2024
+  ];
+  for (const format of dateFormats) {
+    const dateMatch = line.match(format);
+    if (dateMatch) {
+      return dateMatch[1];
+    }
+  }
+  return '';
+}
+
+async function scanAndParseDocument(imagePath: string): Promise<[string, DocumentInfo]> {
   const worker = await createWorker('eng');
   try {
     const { data: { text } } = await worker.recognize(imagePath);
-    return parseDocument(text);
+    return [text, parseDocument(text)];
   } finally {
     await worker.terminate();
   }
 }
 
 function documentInfoToCSV(info: DocumentInfo): string {
-  const headers = 'Store,Invoice Number,Item,Price,Date';
   const rows = info.items.map(item => 
-    `${info.title},${info.invoiceNumber},${item.name},${item.price},${info.date}`
+    `${info.type},${info.title},${info.invoiceNumber},${item.name},${item.price},${info.date},${info.subtotal},${info.total}`
   );
-  if (info.subtotal) {
-    rows.push(`${info.title},${info.invoiceNumber},Subtotal,${info.subtotal},${info.date}`);
+  return rows.join('\n');
+}
+
+
+function ensureCSVHeaders(outputPath: string): void {
+  if (!fs.existsSync(outputPath)) {
+    const headers = 'Type,Store/Company,Invoice Number,Item,Price,Date,Subtotal,Total\n';
+    fs.writeFileSync(outputPath, headers);
   }
-  return [headers, ...rows].join('\n');
+}
+
+function appendToCSV(outputPath: string, content: string): void {
+  const fileExists = fs.existsSync(outputPath);
+  const newContent = (fileExists ? '\n' : '') + content + '\n';
+  fs.appendFileSync(outputPath, newContent);
+}
+
+
+async function processDocument(imagePath: string, outputPath: string): Promise<DocumentInfo> {
+  const [rawText, documentInfo] = await scanAndParseDocument(imagePath);
+  
+  console.log('Raw OCR Text:');
+  console.log('--------------------------------------------------');
+  console.log(rawText);
+  console.log('--------------------------------------------------');
+
+  ensureCSVHeaders(outputPath);
+  const csvContent = documentInfoToCSV(documentInfo);
+  appendToCSV(outputPath, csvContent);
+  console.log('Document processed and appended to CSV file successfully.');
+  
+  return documentInfo;
 }
 
 export const func = async ({ imagePath, outputPath }) => {
   try {
-    const documentInfo = await scanAndParseDocument(imagePath);
-    const csvContent = documentInfoToCSV(documentInfo);
-    fs.writeFileSync(outputPath, csvContent);
+    const documentInfo = await processDocument(imagePath, outputPath);
     return JSON.stringify({
       success: true,
-      message: 'Receipt processed and CSV file created successfully.',
+      message: 'Document processed and CSV file updated successfully.',
       documentInfo
     });
   } catch (error) {
     return JSON.stringify({
       success: false,
-      error: `Error processing receipt: ${error.message}`
+      error: `Error processing document: ${error.message}`
     });
   }
 };
 
 export const object = {
-  name: 'processReceipt',
-  description: 'Process a receipt image, extract information, and create a CSV file.',
+  name: 'bookkeeper',
+  description: 'Process a receipt or invoice image, extract information, and append to a CSV file.',
   parameters: {
     type: 'object',
     properties: {
       imagePath: {
         type: 'string',
-        description: 'The file path to the receipt image'
+        description: 'The file path to the receipt or invoice image'
       },
       outputPath: {
         type: 'string',
-        description: 'The file path where the output CSV should be saved'
+        description: 'The file path where the output CSV should be updated'
       }
     },
     required: ['imagePath', 'outputPath']

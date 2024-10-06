@@ -11,7 +11,7 @@ export const func = async ({ query }: { query: string }) => {
     })
 
     const response = await request.json()
-    return response
+    return JSON.stringify(response)
 }
 
 export const object = {

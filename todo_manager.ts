@@ -75,11 +75,8 @@ class TodoListManager {
   }
 }
 
-export const func = ({ command }: { command: string }): string => {
+export const func = ({ action, task, id }: { action: string; task?: string; id?: number }): string => {
   const todoManager = new TodoListManager();
-
-  // Parse the command to extract action, task, and id
-  const { action, task, id } = parseCommand(command);
 
   switch (action) {
     case 'add':
@@ -125,43 +122,32 @@ export const func = ({ command }: { command: string }): string => {
   }
 };
 
-function parseCommand(command: string): { action: string; task?: string; id?: number } {
-  const words = command.toLowerCase().split(' ');
-  let action = '';
-  let task = '';
-  let id: number | undefined;
-
-  if (words.includes('add') || words.includes('create')) {
-    action = 'add';
-    task = words.slice(words.indexOf('add') + 1).join(' ');
-  } else if (words.includes('update') || words.includes('edit')) {
-    action = 'update';
-    id = parseInt(words[words.indexOf('update') + 1]);
-    task = words.slice(words.indexOf('to') + 1).join(' ');
-  } else if (words.includes('toggle') || words.includes('complete')) {
-    action = 'toggle';
-    id = parseInt(words[words.indexOf('toggle') + 1]);
-  } else if (words.includes('delete') || words.includes('remove')) {
-    action = 'delete';
-    id = parseInt(words[words.indexOf('delete') + 1]);
-  } else if (words.includes('list') || words.includes('show')) {
-    action = 'list';
-  }
-
-  return { action, task, id };
-}
-
 export const object = {
   name: 'todo_manager',
-  description: 'Manage a to-do list with natural language commands to add, update, toggle completion, delete, and list todos.',
+  description: 'Manage a to-do list with actions to add, update, toggle completion, delete, and list todos.',
   parameters: {
     type: 'object',
     properties: {
-      command: {
+      action: {
         type: 'string',
-        description: 'A natural language command to perform an action on the todo list'
+        enum: ['add', 'update', 'toggle', 'delete', 'list'],
+        description: 'The action to perform on the todo list'
+      },
+      task: {
+        type: 'string',
+        description: 'The specific task description to add or update (should not include any mentions of the action such as "add to todo list")'
+      },
+      id: {
+        type: 'number',
+        description: 'The ID of the todo item (required for update, toggle, and delete actions)'
       }
     },
-    required: ['command']
+    required: ['action'],
+    anyOf: [
+      { required: ['action'], properties: { action: { const: 'list' } } },
+      { required: ['action', 'task'], properties: { action: { const: 'add' } } },
+      { required: ['action', 'id', 'task'], properties: { action: { const: 'update' } } },
+      { required: ['action', 'id'], properties: { action: { enum: ['toggle', 'delete'] } } }
+    ]
   }
 };

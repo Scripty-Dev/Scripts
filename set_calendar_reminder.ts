@@ -112,7 +112,7 @@ export const func = async ({ summary, startDateTime, endDateTime, description }:
   
   try {
     // Step 1: Initiate Google authentication
-    const authResponse = await fetch('/api/auth/google-auth', {
+    const authResponse = await fetch('https://scripty.me/api/auth/google-auth', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

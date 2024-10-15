@@ -142,6 +142,12 @@ export const object = {
         description: 'The ID of the todo item (required for update, toggle, and delete actions)'
       }
     },
-    required: ['action']
+    required: ['action'],
+    anyOf: [
+      { required: ['action'], properties: { action: { const: 'list' } } },
+      { required: ['action', 'task'], properties: { action: { const: 'add' } } },
+      { required: ['action', 'id', 'task'], properties: { action: { const: 'update' } } },
+      { required: ['action', 'id'], properties: { action: { enum: ['toggle', 'delete'] } } }
+    ]
   }
 };

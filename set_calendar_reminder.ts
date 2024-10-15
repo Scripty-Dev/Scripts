@@ -124,23 +124,44 @@ export const func = async ({ summary, startDateTime, endDateTime, description }:
       throw new Error('Failed to initiate Google authentication');
     }
 
-    const { authUrl } = await authResponse.json();
+    const { authUrl, state } = await authResponse.json();
     
-    window.open(authUrl, '_blank');
+    // Step 2: Open auth window and wait for tokens
+    const authResult = await new Promise<{tokens: any, state: string}>((resolve, reject) => {
+      const authWindow = window.open(authUrl, '_blank');
+      
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data.tokens && event.data.state) {
+          window.removeEventListener('message', handleMessage);
+          resolve(event.data);
+        }
+      };
 
-    // Step 2: Return the authUrl to the client
-    return JSON.stringify({
-      success: true,
-      message: 'Authentication required',
-      pendingAction: {
-        type: 'set_calendar_reminder',
-        details: { summary, startDateTime, endDateTime, description }
-      }
+      window.addEventListener('message', handleMessage);
+
+      // Set a timeout in case the auth window is closed without completing
+      setTimeout(() => {
+        window.removeEventListener('message', handleMessage);
+        reject(new Error('Authentication timed out'));
+      }, 300000); // 5 minutes timeout
     });
 
-    // Note: The actual creation of the reminder will happen after the user completes authentication
-    // and your application receives the token. You'll need to implement a way to handle this flow
-    // in your main application logic.
+    // Verify the returned state matches the one we sent
+    if (authResult.state !== state) {
+      throw new Error('State mismatch. Possible security issue.');
+    }
+
+    // Step 3: Use the access token to create the reminder
+    const createdEvent = await calendarManager.createUserFriendlyReminder(
+      { summary, startDateTime, endDateTime, description },
+      authResult.tokens.access_token
+    );
+
+    return JSON.stringify({
+      success: true,
+      message: 'Reminder set successfully',
+      event: createdEvent
+    });
 
   } catch (error) {
     return JSON.stringify({
@@ -152,7 +173,7 @@ export const func = async ({ summary, startDateTime, endDateTime, description }:
 
 export const object = {
   name: 'set_calendar_reminder',
-  description: 'Initiate the process of setting a reminder in Google Calendar with user-friendly date/time input.',
+  description: 'Set a reminder in Google Calendar with user-friendly date/time input.',
   parameters: {
     type: 'object',
     properties: {

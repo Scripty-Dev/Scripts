@@ -125,12 +125,13 @@ export const func = async ({ summary, startDateTime, endDateTime, description }:
     }
 
     const { authUrl } = await authResponse.json();
+    
+    window.open(authUrl, '_blank');
 
     // Step 2: Return the authUrl to the client
     return JSON.stringify({
       success: true,
       message: 'Authentication required',
-      authUrl: authUrl,
       pendingAction: {
         type: 'set_calendar_reminder',
         details: { summary, startDateTime, endDateTime, description }

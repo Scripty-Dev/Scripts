@@ -135,7 +135,7 @@ export const object = {
       },
       task: {
         type: 'string',
-        description: 'The task description (required for add and update actions)'
+        description: 'The specific task description to add or update (do not include action words like "add" or "create")'
       },
       id: {
         type: 'number',

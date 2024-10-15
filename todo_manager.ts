@@ -31,13 +31,18 @@ class TodoListManager {
 
   addTodo(task: string): Todo {
     const newTodo: Todo = {
-      id: this.todos.length + 1,
+      id: this.todos.length > 0 ? Math.max(...this.todos.map(t => t.id)) + 1 : 1,
       task: task,
       completed: false
     };
     this.todos.push(newTodo);
     this.saveTodos();
     return newTodo;
+  }
+
+  addMultipleTodos(tasks: string[]): Todo[] {
+    const newTodos = tasks.map(task => this.addTodo(task));
+    return newTodos;
   }
 
   updateTodoList(id: number, updatedTask: string): Todo | null {
@@ -70,25 +75,33 @@ class TodoListManager {
     return false;
   }
 
+  clearAllTodos(): void {
+    this.todos = [];
+    this.saveTodos();
+  }
+
   listTodos(): Todo[] {
     return this.todos;
   }
 }
 
-export const func = ({ action, task, id }: { action: string; task?: string; id?: number }): string => {
+export const func = ({ action, tasks, id }: { action: string; tasks?: string | string[]; id?: number }): string => {
   const todoManager = new TodoListManager();
 
   switch (action) {
     case 'add':
-      if (task) {
-        const newTodo = todoManager.addTodo(task);
+      if (Array.isArray(tasks)) {
+        const newTodos = todoManager.addMultipleTodos(tasks);
+        return JSON.stringify({ success: true, message: 'Multiple todos added successfully', todos: newTodos });
+      } else if (tasks) {
+        const newTodo = todoManager.addTodo(tasks);
         return JSON.stringify({ success: true, message: 'Todo added successfully', todo: newTodo });
       }
-      return JSON.stringify({ success: false, error: 'Task is required for adding a todo' });
+      return JSON.stringify({ success: false, error: 'Task(s) are required for adding todo(s)' });
 
     case 'update':
-      if (id !== undefined && task) {
-        const updatedTodo = todoManager.updateTodoList(id, task);
+      if (id !== undefined && typeof tasks === 'string') {
+        const updatedTodo = todoManager.updateTodoList(id, tasks);
         return updatedTodo
           ? JSON.stringify({ success: true, message: 'Todo updated successfully', todo: updatedTodo })
           : JSON.stringify({ success: false, error: 'Todo not found' });
@@ -117,6 +130,10 @@ export const func = ({ action, task, id }: { action: string; task?: string; id?:
       const todos = todoManager.listTodos();
       return JSON.stringify({ success: true, todos: todos });
 
+    case 'clear':
+      todoManager.clearAllTodos();
+      return JSON.stringify({ success: true, message: 'All todos cleared successfully' });
+
     default:
       return JSON.stringify({ success: false, error: 'Invalid action' });
   }
@@ -124,18 +141,21 @@ export const func = ({ action, task, id }: { action: string; task?: string; id?:
 
 export const object = {
   name: 'todo_manager',
-  description: 'Manage a to-do list with actions to add, update, toggle completion, delete, and list todos.',
+  description: 'Manage a to-do list with actions to add (single or multiple), update, toggle completion, delete, list, and clear all todos.',
   parameters: {
     type: 'object',
     properties: {
       action: {
         type: 'string',
-        enum: ['add', 'update', 'toggle', 'delete', 'list'],
+        enum: ['add', 'update', 'toggle', 'delete', 'list', 'clear'],
         description: 'The action to perform on the todo list'
       },
-      task: {
-        type: 'string',
-        description: 'The specific task description to add or update (should not include any mentions of the action such as "add to todo list")'
+      tasks: {
+        oneOf: [
+          { type: 'string' },
+          { type: 'array', items: { type: 'string' } }
+        ],
+        description: 'The task(s) to add or update. For "add" action, this can be a single task (string) or multiple tasks (array of strings). For "update" action, this should be a single task (string).'
       },
       id: {
         type: 'number',
@@ -144,9 +164,9 @@ export const object = {
     },
     required: ['action'],
     anyOf: [
-      { required: ['action'], properties: { action: { const: 'list' } } },
-      { required: ['action', 'task'], properties: { action: { const: 'add' } } },
-      { required: ['action', 'id', 'task'], properties: { action: { const: 'update' } } },
+      { required: ['action'], properties: { action: { enum: ['list', 'clear'] } } },
+      { required: ['action', 'tasks'], properties: { action: { const: 'add' } } },
+      { required: ['action', 'id', 'tasks'], properties: { action: { const: 'update' } } },
       { required: ['action', 'id'], properties: { action: { enum: ['toggle', 'delete'] } } }
     ]
   }

@@ -1,5 +1,6 @@
 import { parseISO, addHours, addDays, addWeeks, startOfDay, format } from 'date-fns';
-import { zonedTimeToUtc } from 'date-fns-tz';
+import { toZonedTime } from 'date-fns-tz';
+import { BrowserWindow } from 'electron';
 
 interface ReminderDetails {
   summary: string;
@@ -62,8 +63,8 @@ class GoogleCalendarManager {
     const startDate = this.parseDateTime(reminderDetails.startDateTime);
     let endDate = reminderDetails.endDateTime ? this.parseDateTime(reminderDetails.endDateTime) : addHours(startDate, 1);
 
-    const utcStartDate = zonedTimeToUtc(startDate, this.timeZone);
-    const utcEndDate = zonedTimeToUtc(endDate, this.timeZone);
+    const utcStartDate = toZonedTime(startDate, 'UTC');
+    const utcEndDate = toZonedTime(endDate, 'UTC');
 
     const event = {
       summary: reminderDetails.summary,
@@ -111,7 +112,6 @@ export const func = async ({ summary, startDateTime, endDateTime, description }:
   const calendarManager = GoogleCalendarManager.getInstance();
   
   try {
-    // Step 1: Initiate Google authentication
     const authResponse = await fetch('https://scripty.me/api/assistant/google-auth', {
       method: 'POST',
       headers: {
@@ -125,33 +125,62 @@ export const func = async ({ summary, startDateTime, endDateTime, description }:
     }
 
     const { authUrl, state } = await authResponse.json();
-    
-    // Step 2: Open auth window and wait for tokens
+
     const authResult = await new Promise<{tokens: any, state: string}>((resolve, reject) => {
-      const authWindow = window.open(authUrl, '_blank');
-      
-      const handleMessage = (event: MessageEvent) => {
-        if (event.data.tokens && event.data.state) {
-          window.removeEventListener('message', handleMessage);
-          resolve(event.data);
+      const authWindow = new BrowserWindow({
+        width: 800,
+        height: 600,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      });
+
+      authWindow.loadURL(authUrl);
+
+      const handleCallback = (url: string) => {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const code = urlParams.get('code');
+        const returnedState = urlParams.get('state');
+
+        if (code && returnedState && returnedState === state) {
+          authWindow.loadURL(`https://scripty.me/api/assistant/google/calendar-callback?code=${code}&state=${returnedState}`);
+        } else {
+          reject(new Error('Authentication failed: Invalid code or state'));
         }
       };
 
-      window.addEventListener('message', handleMessage);
+      authWindow.webContents.on('will-navigate', (event, url) => {
+        if (url.startsWith('https://scripty.me/api/auth/google/callback')) {
+          handleCallback(url);
+        }
+      });
 
-      // Set a timeout in case the auth window is closed without completing
-      setTimeout(() => {
-        window.removeEventListener('message', handleMessage);
-        reject(new Error('Authentication timed out'));
-      }, 300000); // 5 minutes timeout
+      authWindow.webContents.on('did-navigate', (event, url) => {
+        if (url.startsWith('https://scripty.me/api/assistant/google/calendar-callback')) {
+          authWindow.webContents.executeJavaScript('document.body.innerHTML')
+            .then(html => {
+              const match = html.match(/window\.opener\.postMessage\(({.*}),/);
+              if (match) {
+                const data = JSON.parse(match[1]);
+                resolve(data);
+              } else {
+                reject(new Error('Failed to extract tokens from response'));
+              }
+              authWindow.close();
+            });
+        }
+      });
+
+      authWindow.on('closed', () => {
+        reject(new Error('Auth window was closed'));
+      });
     });
 
-    // Verify the returned state matches the one we sent
     if (authResult.state !== state) {
       throw new Error('State mismatch. Possible security issue.');
     }
 
-    // Step 3: Use the access token to create the reminder
     const createdEvent = await calendarManager.createUserFriendlyReminder(
       { summary, startDateTime, endDateTime, description },
       authResult.tokens.access_token
@@ -164,6 +193,7 @@ export const func = async ({ summary, startDateTime, endDateTime, description }:
     });
 
   } catch (error) {
+    console.error('Error in set_calendar_reminder:', error);
     return JSON.stringify({
       success: false,
       error: `Error setting reminder: ${(error as Error).message}`

@@ -155,7 +155,7 @@ export const object = {
           { type: 'string' },
           { type: 'array', items: { type: 'string' } }
         ],
-        description: 'The task(s) to add or update. For "add" action, this can be a single task (string) or multiple tasks (array of strings). For "update" action, this should be a single task (string).'
+        description: 'The task(s) to add or update. For "add" action, this can be a single task (string) or multiple tasks (array of strings). For "update" action, this should be a single task (string). The task itself must not include any mentions of the action of adding a script or updating such as "add to"'
       },
       id: {
         type: 'number',

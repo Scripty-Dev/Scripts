@@ -1,38 +1,36 @@
 export const func = async ({ city, country }: { 
-  city?: string; 
-  country?: string; 
+  city: string; 
+  country: string; 
 }): Promise<string> => {
-  if (!city) {
-    return JSON.stringify({ error: 'City is required' });
+  try {
+    const weatherRequest = await fetch('https://scripty.me/api/assistant/weathermap', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        city,
+        country,
+        token: config['token'],
+        units: 'metric', // You can make this configurable if needed
+      }),
+    });
+    
+    if (!weatherRequest.ok) {
+      throw new Error(`HTTP error! status: ${weatherRequest.status}`);
+    }
+    
+    const weatherResponse = await weatherRequest.json();
+    return JSON.stringify(weatherResponse);
+  } catch (error) {
+    console.error('Error fetching weather data:', error);
+    return JSON.stringify({ error: 'Failed to fetch weather data' });
   }
-
-  const coordinates = await geocode(city, country);
-  if (!coordinates) {
-    return JSON.stringify({ error: 'Unable to geocode the provided location' });
-  }
-
-  const [lat, lon] = coordinates;
-  
-  // Make the weather request with lat and lon
-  const weatherRequest = await fetch('https://scripty.me/api/assistant/weathermap', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      lat,
-      lon,
-      token: config['token'],
-      units: 'metric', // You can make this configurable
-    }),
-  });
-  const weatherResponse = await weatherRequest.json();
-  return JSON.stringify(weatherResponse);
 };
 
 export const object = {
   name: 'weathermap',
-  description: 'Get current weather data for a given location using OpenWeatherMap One Call API 3.0. Provide a city name and country code. The function will geocode the location using OpenWeatherMap\'s geocoding API and fetch the weather data.',
+  description: 'Get current weather data for a given location using OpenWeatherMap API. Provide a city name and country code.',
   parameters: {
     type: 'object',
     properties: {

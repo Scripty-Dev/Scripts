@@ -1,9 +1,9 @@
-export const weatherMapFunc = async ({ city, country, lat, lon }: { 
+export const func = async ({ city, country, lat, lon }: { 
     city?: string; 
     country?: string; 
     lat?: number; 
     lon?: number; 
-}) => {
+}): Promise<string> => {
     const request = await fetch('https://scripty.me/api/assistant/weathermap', {
         method: 'POST',
         headers: {
@@ -21,7 +21,7 @@ export const weatherMapFunc = async ({ city, country, lat, lon }: {
     return JSON.stringify(response);
 };
 
-export const weatherMapObject = {
+export const object = {
     name: 'weathermap',
     description: 'Get current weather data for a given location. You can provide either a city name (and optionally a country code), or latitude and longitude. If no location is provided, it will attempt to use the user\'s IP address for geolocation.',
     parameters: {

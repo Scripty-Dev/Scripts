@@ -1,7 +1,9 @@
-import vm from 'vm'
-
 declare global {
-    const config: object
+    const config: {
+        token: string
+        [key: string]: any
+    }
+    const openUrl: (url: string) => void
     function scriptContext(
         code: string,
         functions?: Function[]

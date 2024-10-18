@@ -1,6 +1,8 @@
-export const func = async ({ city, country }: { 
+export const func = async ({ city, country, units = 'metric', lang }: { 
   city: string; 
-  country: string; 
+  country: string;
+  units?: 'standard' | 'metric' | 'imperial';
+  lang?: string;
 }): Promise<string> => {
   try {
     const weatherRequest = await fetch('https://scripty.me/api/assistant/weathermap', {
@@ -11,8 +13,9 @@ export const func = async ({ city, country }: {
       body: JSON.stringify({
         city,
         country,
+        units,
+        lang,
         token: config['token'],
-        units: 'metric', // You can make this configurable if needed
       }),
     });
     
@@ -30,7 +33,7 @@ export const func = async ({ city, country }: {
 
 export const object = {
   name: 'weathermap',
-  description: 'Get current weather data for a given location using OpenWeatherMap API. Provide a city name and country code.',
+  description: 'Get weather forecasts for a given location using OpenWeatherMap API free tier. Provides hourly forecast for today, 36-hour forecast, and weekly forecast.',
   parameters: {
     type: 'object',
     properties: {
@@ -41,6 +44,15 @@ export const object = {
       country: {
         type: 'string',
         description: 'Two-letter country code',
+      },
+      units: {
+        type: 'string',
+        description: 'Units of measurement (optional, defaults to metric)',
+        enum: ['standard', 'metric', 'imperial'],
+      },
+      lang: {
+        type: 'string',
+        description: 'Language code for the weather description (optional)',
       },
     },
     required: ['city', 'country'],

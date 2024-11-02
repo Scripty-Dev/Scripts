@@ -5,7 +5,7 @@ export const func = async ({ city, country, units = 'metric', lang }: {
   lang?: string;
 }): Promise<string> => {
   try {
-    const weatherRequest = await fetch('https://scripty.me/api/assistant/weathermap', {
+    const weatherRequest = await fetch(`https://scripty.me/api/assistant/weathermap?token=${config['token']}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -14,8 +14,7 @@ export const func = async ({ city, country, units = 'metric', lang }: {
         city,
         country,
         units,
-        lang,
-        token: config['token'],
+        lang
       }),
     });
     

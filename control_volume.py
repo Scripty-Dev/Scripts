@@ -68,10 +68,9 @@ def run_script(args):
         
     return "Error: Please specify either 'set' or 'adjust' in the arguments"
 
-# Function definition that matches the Groq interface
 object = {
     "name": "control_volume",
-    "description": f"Control system volume on {PLATFORM.capitalize()} by either setting it to a specific level or adjusting it relatively",
+    "description": f"Control system volume on {PLATFORM.capitalize()}. Required format: For setting volume use {{\"set\": number}} where number is 0-100, or for adjusting volume use {{\"adjust\": number}} where number is -100 to +100.",
     "parameters": {
         "type": "object",
         "properties": {

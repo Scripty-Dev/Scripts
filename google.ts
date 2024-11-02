@@ -1,13 +1,10 @@
 export const func = async ({ query }: { query: string }) => {
-    const request = await fetch('https://scripty.me/api/assistant/serper', {
+    const request = await fetch(`https://scripty.me/api/assistant/serper?token=${config['token']}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            query,
-            token: config['token'],
-        }),
+        body: JSON.stringify({ query }),
     })
 
     const response = await request.json()

@@ -1,3 +1,5 @@
+import sys
+import json
 import platform
 import subprocess
 
@@ -19,54 +21,57 @@ if PLATFORM == "windows":
         print("Warning: For Windows volume control, install pycaw: pip install pycaw")
         VOLUME_INTERFACE = None
 
-def run_script(args):
+async def func(args):
     """
     Controls system volume - can either set specific volume or adjust by relative amount
     """
-    if 'set' in args:
-        target = max(0, min(100, int(args['set'])))
-        
-        if PLATFORM == "darwin":
-            subprocess.run(["osascript", "-e", f"set volume output volume {target}"])
-            return f"Volume set to {target}%"
+    try:
+        if 'set' in args:
+            target = max(0, min(100, int(args['set'])))
             
-        elif PLATFORM == "linux":
-            subprocess.run(["amixer", "-q", "sset", "Master", f"{target}%"])
-            return f"Volume set to {target}%"
-            
-        elif PLATFORM == "windows":
-            if VOLUME_INTERFACE:
-                VOLUME_INTERFACE.SetMasterVolumeLevelScalar(target / 100.0, None)
-                return f"Volume set to {target}%"
-            return "Error: Windows volume control requires pycaw package"
+            if PLATFORM == "darwin":
+                subprocess.run(["osascript", "-e", f"set volume output volume {target}"])
+                return json.dumps({"message": f"Volume set to {target}%"})
                 
-        return f"Unsupported operating system: {PLATFORM}"
-    
-    elif 'adjust' in args:
-        change = max(-100, min(100, int(args['adjust'])))
-        
-        if PLATFORM == "darwin":
-            current = subprocess.getoutput("osascript -e 'output volume of (get volume settings)'")
-            new_vol = max(0, min(100, int(current) + change))
-            subprocess.run(["osascript", "-e", f"set volume output volume {new_vol}"])
-            return f"Volume adjusted by {change}% to {new_vol}%"
-            
-        elif PLATFORM == "linux":
-            sign = "+" if change > 0 else "-"
-            subprocess.run(["amixer", "-q", "sset", "Master", f"{abs(change)}%{sign}"])
-            return f"Volume adjusted by {change}%"
-            
-        elif PLATFORM == "windows":
-            if VOLUME_INTERFACE:
-                current_vol = VOLUME_INTERFACE.GetMasterVolumeLevelScalar()
-                new_vol = max(0.0, min(1.0, current_vol + (change / 100.0)))
-                VOLUME_INTERFACE.SetMasterVolumeLevelScalar(new_vol, None)
-                return f"Volume adjusted by {change}% to {int(new_vol * 100)}%"
-            return "Error: Windows volume control requires pycaw package"
+            elif PLATFORM == "linux":
+                subprocess.run(["amixer", "-q", "sset", "Master", f"{target}%"])
+                return json.dumps({"message": f"Volume set to {target}%"})
                 
-        return f"Unsupported operating system: {PLATFORM}"
+            elif PLATFORM == "windows":
+                if VOLUME_INTERFACE:
+                    VOLUME_INTERFACE.SetMasterVolumeLevelScalar(target / 100.0, None)
+                    return json.dumps({"message": f"Volume set to {target}%"})
+                return json.dumps({"error": "Windows volume control requires pycaw package"})
+                    
+            return json.dumps({"error": f"Unsupported operating system: {PLATFORM}"})
         
-    return "Error: Please specify either 'set' or 'adjust' in the arguments"
+        elif 'adjust' in args:
+            change = max(-100, min(100, int(args['adjust'])))
+            
+            if PLATFORM == "darwin":
+                current = subprocess.getoutput("osascript -e 'output volume of (get volume settings)'")
+                new_vol = max(0, min(100, int(current) + change))
+                subprocess.run(["osascript", "-e", f"set volume output volume {new_vol}"])
+                return json.dumps({"message": f"Volume adjusted by {change}% to {new_vol}%"})
+                
+            elif PLATFORM == "linux":
+                sign = "+" if change > 0 else "-"
+                subprocess.run(["amixer", "-q", "sset", "Master", f"{abs(change)}%{sign}"])
+                return json.dumps({"message": f"Volume adjusted by {change}%"})
+                
+            elif PLATFORM == "windows":
+                if VOLUME_INTERFACE:
+                    current_vol = VOLUME_INTERFACE.GetMasterVolumeLevelScalar()
+                    new_vol = max(0.0, min(1.0, current_vol + (change / 100.0)))
+                    VOLUME_INTERFACE.SetMasterVolumeLevelScalar(new_vol, None)
+                    return json.dumps({"message": f"Volume adjusted by {change}% to {int(new_vol * 100)}%"})
+                return json.dumps({"error": "Windows volume control requires pycaw package"})
+                    
+            return json.dumps({"error": f"Unsupported operating system: {PLATFORM}"})
+            
+        return json.dumps({"error": "Please specify either 'set' or 'adjust' in the arguments"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
 
 object = {
     "name": "control_volume",
@@ -90,5 +95,15 @@ object = {
     }
 }
 
-# The function that will be called
-func = run_script
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        if sys.argv[1] == '--get-exports':
+            print(json.dumps({"object": object}))
+        else:
+            try:
+                args = json.loads(sys.argv[1])
+                import asyncio
+                result = asyncio.run(func(args))
+                print(result)
+            except Exception as e:
+                print(json.dumps({"error": str(e)}))

@@ -74,7 +74,7 @@ async def func(args):
         return json.dumps({"error": str(e)})
 
 object = {
-    "name": "control_volume",
+    "name": "controlVolume",
     "description": f"Control system volume on {PLATFORM.capitalize()}. Required format: For setting volume use {{\"set\": number}} where number is 0-100, or for adjusting volume use {{\"adjust\": number}} where number is -100 to +100.",
     "parameters": {
         "type": "object",

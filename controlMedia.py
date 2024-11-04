@@ -1,122 +1,52 @@
 import sys
 import json
-import platform
 import keyboard
 import psutil
 from time import sleep
-import subprocess
+import pyautogui
 
-# Global for platform
-PLATFORM = platform.system().lower()
-
-def get_active_media_player():
-    """
-    Detects which media player is currently running
-    Returns: string - name of media player or None
-    """
-    media_players = {
-        'spotify': 'Spotify',
-        'music.ui': 'Apple Music',
-        'vlc': 'VLC',
-        'windowsmediaplayer': 'Windows Media Player',
-        'wmplayer': 'Windows Media Player',
-        'itunes': 'iTunes',
-        'groove': 'Groove Music'
-    }
-    
+def is_spotify_running():
+    """Check if Spotify is running"""
     for proc in psutil.process_iter(['name']):
         try:
-            process_name = proc.info['name'].lower()
-            for player_process, player_name in media_players.items():
-                if player_process in process_name:
-                    return player_name
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            if 'spotify' in proc.info['name'].lower():
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
-    return None
-
-def focus_window(player_name):
-    """
-    Attempts to focus the media player window
-    """
-    if PLATFORM == 'windows':
-        try:
-            subprocess.run(['powershell', '-Command', f'(New-Object -ComObject WScript.Shell).AppActivate("{player_name}")'])
-            return True
-        except:
-            return False
-    elif PLATFORM == 'darwin':  # macOS
-        try:
-            subprocess.run(['osascript', '-e', f'tell application "{player_name}" to activate'])
-            return True
-        except:
-            return False
-    elif PLATFORM == 'linux':
-        try:
-            subprocess.run(['wmctrl', '-a', player_name])
-            return True
-        except:
-            return False
     return False
 
 async def play_song(query):
     """
-    Attempts to play a song using the active media player's search functionality
+    Search and play a specific song on Spotify
     """
     try:
-        # Detect active media player
-        player = get_active_media_player()
-        if not player:
+        if not is_spotify_running():
             return json.dumps({
-                "error": "No active media player detected",
+                "error": "Spotify is not running. Please open Spotify first.",
                 "status": "error"
             })
 
-        # Focus the media player window
-        if not focus_window(player):
-            return json.dumps({
-                "error": f"Could not focus {player} window",
-                "status": "error"
-            })
-
-        sleep(0.5)  # Wait for window to focus
-
-        # Simulate search shortcut based on player
-        if player == "Spotify":
-            # Ctrl+L for search in Spotify
-            keyboard.press('ctrl+l')
-            sleep(0.2)
-            keyboard.write(query)
-            sleep(0.2)
-            keyboard.press('enter')
-            sleep(0.5)
-            keyboard.press('enter')  # Select first result
+        # Focus on search
+        keyboard.press_and_release('ctrl+l')  # This focuses Spotify's search bar
+        sleep(0.5)
         
-        elif player in ["iTunes", "Apple Music"]:
-            # Cmd+F or Ctrl+F for search
-            if PLATFORM == 'darwin':
-                keyboard.press('command+f')
-            else:
-                keyboard.press('ctrl+f')
-            sleep(0.2)
-            keyboard.write(query)
-            sleep(0.2)
-            keyboard.press('enter')
+        # Clear any existing search
+        keyboard.press_and_release('ctrl+a')  # Select all
+        sleep(0.1)
+        keyboard.press_and_release('backspace')  # Clear selection
+        sleep(0.1)
         
-        else:
-            # Generic approach for other players
-            # Many use Ctrl+F or Cmd+F for search
-            if PLATFORM == 'darwin':
-                keyboard.press('command+f')
-            else:
-                keyboard.press('ctrl+f')
-            sleep(0.2)
-            keyboard.write(query)
-            sleep(0.2)
-            keyboard.press('enter')
+        # Type the search query
+        keyboard.write(query)
+        sleep(1)  # Wait for search results
+        
+        # Select and play first result
+        keyboard.press_and_release('enter')
+        sleep(0.5)
+        keyboard.press_and_release('enter')  # Second enter to play the top result
 
         return json.dumps({
-            "message": f"Attempting to play '{query}' on {player}",
-            "player": player,
+            "message": f"Playing: {query}",
             "status": "success"
         })
 
@@ -128,49 +58,38 @@ async def play_song(query):
 
 async def func(args):
     """
-    Controls media playback - supports playing specific songs and basic media controls
+    Main function to handle media controls
     """
     try:
         if 'action' in args:
             action = args['action'].lower()
             
-            # Define keyboard shortcuts based on platform
-            if PLATFORM == 'windows':
-                CONTROLS = {
-                    "play": "play/pause media",
-                    "next": "next track",
-                    "previous": "previous track",
-                    "stop": "stop media",
-                }
-            elif PLATFORM == 'darwin':  # macOS
-                CONTROLS = {
-                    "play": "play/pause",
-                    "next": "fastforward",
-                    "previous": "rewind",
-                    "stop": "stop",
-                }
-            else:  # linux
-                CONTROLS = {
-                    "play": "play/pause",
-                    "next": "next",
-                    "previous": "previous",
-                    "stop": "stop",
-                }
-
             # Handle playing specific song
             if action == "play" and "query" in args:
                 return await play_song(args["query"])
-
+            
             # Handle basic media controls
-            elif action in CONTROLS:
-                keyboard.send(CONTROLS[action])
+            elif action == "next":
+                keyboard.send('next track')
                 return json.dumps({
-                    "message": f"Successfully executed {action} command",
+                    "message": "Skipped to next track",
+                    "status": "success"
+                })
+            elif action == "previous":
+                keyboard.send('previous track')
+                return json.dumps({
+                    "message": "Skipped to previous track",
+                    "status": "success"
+                })
+            elif action == "pause" or action == "unpause":
+                keyboard.send('play/pause media')
+                return json.dumps({
+                    "message": f"Toggled play/pause",
                     "status": "success"
                 })
             
             return json.dumps({
-                "error": "Invalid action. Available actions: play (with query), stop, next, previous",
+                "error": "Invalid action. Use 'play' (with query), 'pause', 'unpause', 'next', or 'previous'",
                 "status": "error"
             })
             
@@ -185,21 +104,21 @@ async def func(args):
             "status": "error"
         })
 
-# Updated object definition
+# Object definition
 object = {
-    "name": "controlMedia",
-    "description": f"Control media playback on {PLATFORM.capitalize()}. Required format: {{\"action\": string, \"query\": string}} where action is one of the available commands and query is the song to play.",
+    "name": "spotifyControl",
+    "description": "Control Spotify playback. Format: {\"action\": string, \"query\": string (required for play)} where action is play/pause/unpause/next/previous",
     "parameters": {
         "type": "object",
         "properties": {
             "action": {
                 "type": "string",
-                "enum": ["play", "stop", "next", "previous"],
-                "description": "Control media playback"
+                "enum": ["play", "pause", "unpause", "next", "previous"],
+                "description": "Control action to perform"
             },
             "query": {
                 "type": "string",
-                "description": "Song title or search query (required when action is 'play')"
+                "description": "Song to play (required when action is 'play')"
             }
         },
         "required": ["action"]

@@ -10,9 +10,10 @@ class SpotifyController:
         """Initialize Spotify client with credentials from server"""
         try:
             # Fetch credentials from server
-            response = requests.get('https://scripty.me/api/assistant/spotify-creds', 
-                headers={'Authorization': f'Bearer {config["token"]}'})
-            creds = response.json()
+             creds_response = requests.post('https://scripty.me/api/assistant/spotify', 
+                                      json=args,
+                                      params={'token': config['token']})
+            response = creds_response.json()
             
             # Create cache directory in user's home directory
             cache_dir = os.path.join(os.path.expanduser("~"), ".spotify-cache")

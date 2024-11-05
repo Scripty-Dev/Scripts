@@ -26,11 +26,10 @@ class SpotifyController:
         """Initialize Spotify client with credentials from server"""
         try:
             config = get_config()
-            # Fetch credentials from server
+            # Pass token as URL parameter instead of JSON body
             creds_response = requests.post(
-                'https://scripty.me/api/assistant/spotify',
-                headers={'Content-Type': 'application/json'},
-                json={'token': config['token']}
+                f'https://scripty.me/api/assistant/spotify?token={config["token"]}',
+                headers={'Content-Type': 'application/json'}
             )
             
             if creds_response.status_code != 200:

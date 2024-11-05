@@ -5,15 +5,38 @@ import requests
 from spotipy.oauth2 import SpotifyOAuth
 import os
 
+def get_config():
+    # Determine appdata path based on platform
+    if sys.platform == 'win32':
+        appdata = os.getenv('APPDATA')
+    elif sys.platform == 'darwin':
+        appdata = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support')
+    else:  # linux
+        appdata = os.path.join(os.path.expanduser('~'), '.config')
+    
+    # Construct path to Scripty config
+    config_path = os.path.join(appdata, 'Scripty', 'config.json')
+    
+    # Read and return config
+    with open(config_path, 'r') as f:
+        return json.load(f)
+
 class SpotifyController:
     def __init__(self):
         """Initialize Spotify client with credentials from server"""
         try:
+            config = get_config()
             # Fetch credentials from server
-             creds_response = requests.post('https://scripty.me/api/assistant/spotify', 
-                                      json=args,
-                                      params={'token': config['token']})
-            response = creds_response.json()
+            creds_response = requests.post(
+                'https://scripty.me/api/assistant/spotify',
+                headers={'Content-Type': 'application/json'},
+                json={'token': config['token']}
+            )
+            
+            if creds_response.status_code != 200:
+                raise Exception(f"Failed to get credentials: {creds_response.text}")
+                
+            creds = creds_response.json()
             
             # Create cache directory in user's home directory
             cache_dir = os.path.join(os.path.expanduser("~"), ".spotify-cache")
@@ -54,7 +77,18 @@ class SpotifyController:
                     "uri": track['uri']
                 })
 
-            self.sp.start_playback(uris=[tracks[0]['uri']])
+            # Get available devices
+            devices = self.sp.devices()
+            if not devices['devices']:
+                return {
+                    "error": "No active Spotify devices found",
+                    "status": "error"
+                }
+            
+            # Use the first available device
+            device_id = devices['devices'][0]['id']
+            
+            self.sp.start_playback(device_id=device_id, uris=[tracks[0]['uri']])
             
             return {
                 "message": f"Now playing: {tracks[0]['name']} by {tracks[0]['artists'][0]['name']}",
@@ -72,15 +106,26 @@ class SpotifyController:
     def control_playback(self, action):
         """Control playback (pause/unpause/next/previous)"""
         try:
-            if action == "pause":
-                self.sp.pause_playback()
-            elif action == "unpause":
-                self.sp.start_playback()
-            elif action == "next":
-                self.sp.next_track()
-            elif action == "previous":
-                self.sp.previous_track()
+            # Get available devices first
+            devices = self.sp.devices()
+            if not devices['devices']:
+                return {
+                    "error": "No active Spotify devices found",
+                    "status": "error"
+                }
             
+            device_id = devices['devices'][0]['id']
+            
+            if action == "pause":
+                self.sp.pause_playback(device_id=device_id)
+            elif action == "unpause":
+                self.sp.start_playback(device_id=device_id)
+            elif action == "next":
+                self.sp.next_track(device_id=device_id)
+            elif action == "previous":
+                self.sp.previous_track(device_id=device_id)
+            
+            # Get current playback state
             current = self.sp.current_playback()
             if current and current['item']:
                 return {

@@ -1,30 +1,38 @@
 import sys
 import json
 import spotipy
+import requests
 from spotipy.oauth2 import SpotifyOAuth
 import os
 
-# Create cache directory in user's home directory
-CACHE_DIR = os.path.join(os.path.expanduser("~"), ".spotify-cache")
-if not os.path.exists(CACHE_DIR):
-    os.makedirs(CACHE_DIR)
-CACHE_PATH = os.path.join(CACHE_DIR, ".spotify_token_cache")
-
 class SpotifyController:
     def __init__(self):
-        """Initialize Spotify client"""
-        self.sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-            client_id='YOUR_CLIENT_ID',
-            client_secret='YOUR_CLIENT_SECRET',
-            redirect_uri='http://localhost:8888/callback',
-            scope='user-read-playback-state user-modify-playback-state user-read-currently-playing',
-            cache_path=CACHE_PATH
-        ))
+        """Initialize Spotify client with credentials from server"""
+        try:
+            # Fetch credentials from server
+            response = requests.get('https://scripty.me/api/assistant/spotify-creds', 
+                headers={'Authorization': f'Bearer {config["token"]}'})
+            creds = response.json()
+            
+            # Create cache directory in user's home directory
+            cache_dir = os.path.join(os.path.expanduser("~"), ".spotify-cache")
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+            cache_path = os.path.join(cache_dir, ".spotify_token_cache")
+
+            self.sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+                client_id=creds['client_id'],
+                client_secret=creds['client_secret'],
+                redirect_uri=creds['redirect_uri'],
+                scope='user-read-playback-state user-modify-playback-state user-read-currently-playing',
+                cache_path=cache_path
+            ))
+        except Exception as e:
+            raise Exception(f"Failed to initialize Spotify client: {str(e)}")
 
     def play_song(self, query):
         """Search and play a song"""
         try:
-            # Search for the track
             results = self.sp.search(q=query, type='track', limit=5)
             
             if not results['tracks']['items']:
@@ -45,7 +53,6 @@ class SpotifyController:
                     "uri": track['uri']
                 })
 
-            # Play the first track
             self.sp.start_playback(uris=[tracks[0]['uri']])
             
             return {
@@ -103,14 +110,10 @@ async def func(args):
             action = args['action'].lower()
             controller = SpotifyController()
             
-            # Handle playing specific song
             if action == "play" and "query" in args:
                 result = controller.play_song(args["query"])
-            
-            # Handle basic controls
             elif action in ["pause", "unpause", "next", "previous"]:
                 result = controller.control_playback(action)
-            
             else:
                 result = {
                     "error": "Invalid action. Use 'play' (with query), 'pause', 'unpause', 'next', or 'previous'",

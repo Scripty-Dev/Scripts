@@ -3,3 +3,4 @@ pycaw>=20230412
 keyboard
 requests
 pyautogui
+spotipy

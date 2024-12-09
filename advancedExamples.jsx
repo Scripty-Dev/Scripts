@@ -1,5 +1,6 @@
 import React from 'react'
 
+// The object export for the AI
 export const object = {
     name: 'advancedExample',
     description: 'An example advanced script with UI.',
@@ -15,7 +16,8 @@ export const object = {
     }
 }
 
-const AdvancedExample: React.FC = () => {
+// The React component
+const AdvancedExample = () => {
     return (
         <div className="p-4 bg-gray-800 rounded-lg">
             <h2 className="text-xl font-bold text-white">Advanced Script</h2>

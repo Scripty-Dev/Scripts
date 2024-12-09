@@ -1,22 +1,20 @@
 import React from 'react'
 
-// The object export for AI integration
 export const object = {
     name: 'advancedExample',
-    description: 'Example advanced script with UI.',
+    description: 'An example advanced script with UI.',
     parameters: {
         type: 'object',
         properties: {
             message: {
                 type: 'string',
-                description: 'Message to display'
+                description: 'A message to display'
             }
         },
         required: []
     }
 }
 
-// The React component as default export
 const AdvancedExample: React.FC = () => {
     return (
         <div className="p-4 bg-gray-800 rounded-lg">

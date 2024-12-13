@@ -3,23 +3,16 @@ import json
 import platform
 import subprocess
 
-# Global for platform
 PLATFORM = platform.system().lower()
 
-# Import platform-specific dependencies only if needed
 if PLATFORM == "windows":
-    try:
-        from ctypes import cast, POINTER
-        from comtypes import CLSCTX_ALL
-        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-        
-        # Initialize Windows audio devices once
-        devices = AudioUtilities.GetSpeakers()
-        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        VOLUME_INTERFACE = cast(interface, POINTER(IAudioEndpointVolume))
-    except ImportError:
-        print("Warning: For Windows volume control, install pycaw: pip install pycaw")
-        VOLUME_INTERFACE = None
+    from ctypes import cast, POINTER
+    from comtypes import CLSCTX_ALL
+    from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+    
+    devices = AudioUtilities.GetSpeakers()
+    interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    VOLUME_INTERFACE = cast(interface, POINTER(IAudioEndpointVolume))
 
 async def func(args):
     """

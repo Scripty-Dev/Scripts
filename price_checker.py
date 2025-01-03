@@ -43,7 +43,7 @@ async def get_amazon_products(search_term):
             if not title or not link:
                 continue
                 
-            if link.startswith('/'):
+            if not link.startswith('http'):
                 link = f"https://www.amazon.com{link}"
 
             reviews_block = item.find('div', {'data-cy': 'reviews-block'})
@@ -104,7 +104,10 @@ async def get_walmart_products(search_term):
                 
             title = title_span.text.strip()
             link = link_elem.get('href')
-            if link and link.startswith('/'):
+            if not link:
+                continue
+                
+            if not link.startswith('http'):
                 link = f"https://www.walmart.com{link}"
                 
             price_div = item.find('div', {'data-automation-id': 'product-price'})

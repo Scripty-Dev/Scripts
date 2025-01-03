@@ -167,53 +167,7 @@ async def func(args):
                 try:
                     price_str = product['price']
                     if price_str != 'Price not available':
-                        price = float(price_str.replace('
-
-    except Exception as e:
-        return json.dumps({
-            "error": str(e),
-            "status": "error"
-        })
-
-# Object definition for the assistant framework
-object = {
-    "name": "priceCheck",
-    "description": "Search for product prices across multiple stores. Format: {\"query\": string, \"stores\": [string]} where stores is optional and can include 'amazon' and/or 'walmart'",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "query": {
-                "type": "string",
-                "description": "Product search query"
-            },
-            "stores": {
-                "type": "array",
-                "items": {
-                    "type": "string",
-                    "enum": ["amazon", "walmart"]
-                },
-                "description": "List of stores to search (default: all stores)"
-            }
-        },
-        "required": ["query"]
-    }
-}
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        if sys.argv[1] == '--get-exports':
-            print(json.dumps({"object": object}))
-        else:
-            try:
-                args = json.loads(sys.argv[1])
-                result = asyncio.run(func(args))
-                print(result)
-            except Exception as e:
-                print(json.dumps({
-                    "error": str(e),
-                    "status": "error"
-                }))
-, '').replace(',', ''))
+                        price = float(price_str.replace('$', '').replace(',', ''))
                         if price < min_price:
                             min_price = price
                             cheapest_product = {'store': store, **product}

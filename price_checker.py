@@ -145,13 +145,28 @@ async def func(args):
         if not search_term:
             return json.dumps({"error": "No search query provided"})
 
-        amazon_results = await get_amazon_products(search_term)
-        walmart_results = await get_walmart_products(search_term)
+        results = {
+            "message": f"Search results for: {search_term}",
+            "results": []
+        }
 
-        return json.dumps({
-            "amazon": amazon_results,
-            "walmart": walmart_results
-        }, indent=2)
+        amazon_results = await get_amazon_products(search_term)
+        if isinstance(amazon_results, list):
+            for product in amazon_results:
+                results["results"].append({
+                    "store": "Amazon",
+                    **product
+                })
+
+        walmart_results = await get_walmart_products(search_term)
+        if isinstance(walmart_results, list):
+            for product in walmart_results:
+                results["results"].append({
+                    "store": "Walmart",
+                    **product
+                })
+
+        return json.dumps(results)
 
     except Exception as e:
         return json.dumps({"error": str(e)})

@@ -176,7 +176,7 @@ async def func(args):
 
 object = {
     "name": "price_checker",
-    "description": "Search for product prices on Amazon and Walmart",
+    "description": "Search for product prices on Amazon and Walmart. Provide all the links to the user as well.",
     "parameters": {
         "type": "object",
         "properties": {

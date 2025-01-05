@@ -5,6 +5,32 @@ import time
 import json
 import sys
 import asyncio
+from selenium import webdriver
+import undetected_chromedriver as uc
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+logging.basicConfig(level=logging.INFO)
+
+def wait_and_find(driver, by, value, timeout=10):
+    try:
+        element = WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located((by, value))
+        )
+        return element
+    except:
+        return None
+
+def wait_and_find_all(driver, by, value, timeout=10):
+    try:
+        elements = WebDriverWait(driver, timeout).until(
+            EC.presence_of_all_elements_located((by, value))
+        )
+        return elements
+    except:
+        return []
 
 logging.basicConfig(level=logging.INFO)
 
@@ -142,6 +168,93 @@ async def get_walmart_products(search_term):
     except Exception as e:
         return f"Error: {str(e)}"
 
+async def get_costco_products(search_term):
+    options = uc.ChromeOptions()
+    options.headless = True
+    
+    options.add_argument('--disable-http2')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--start-maximized')
+    options.add_argument('--disable-extensions')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_argument('--window-size=1920,1080')
+    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    options.add_argument('--disable-notifications')
+    options.add_argument('--ignore-certificate-errors')
+    options.add_argument('--allow-running-insecure-content')
+    options.add_argument('--enable-javascript')
+    
+    try:
+        driver = uc.Chrome(options=options)
+        driver.set_page_load_timeout(30)
+        
+        url = f'https://www.costco.ca/s?langId=-24&keyword={search_term.replace(" ", "+")}'
+        
+        try:
+            driver.get(url)
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            time.sleep(1)  # Consistent with other functions' delay
+            
+            # Accept cookies if present
+            cookie_button = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, "onetrust-accept-btn-handler"))
+            )
+            if cookie_button:
+                cookie_button.click()
+            
+            products = []
+            product_tiles = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, '[data-testid^="ProductTile_"]'))
+            )
+            
+            for tile in product_tiles[:3]:  # Consistent with other functions' limit
+                try:
+                    link_elem = tile.find_element(By.CSS_SELECTOR, 'a[data-testid="Link"]')
+                    if not link_elem:
+                        continue
+                    
+                    url = link_elem.get_attribute('href')
+                    title_span = link_elem.find_element(By.TAG_NAME, 'span')
+                    title = title_span.text if title_span else None
+                    
+                    price = 'Price not available'
+                    price_elem = tile.find_element(By.CSS_SELECTOR, '[data-testid^="Text_Price_"]')
+                    if price_elem:
+                        price = price_elem.text
+                    
+                    rating = 'No rating'
+                    rating_div = tile.find_element(By.CSS_SELECTOR, '[role="img"][aria-label*="rating"]')
+                    if rating_div:
+                        rating_text = rating_div.get_attribute('aria-label')
+                        if 'out of 5 stars' in rating_text:
+                            rating = rating_text.split('Average rating is ')[1].split(' stars')[0] + ' stars'
+
+                    if title and url:
+                        products.append({
+                            'title': title,
+                            'price': price,
+                            'rating': rating,
+                            'url': url
+                        })
+
+                except Exception:
+                    continue
+
+            return products
+
+        except Exception as e:
+            return f"Error: {str(e)}"
+            
+    except Exception as e:
+        return f"Error: {str(e)}"
+        
+    finally:
+        driver.quit()
+        
 async def func(args):
     try:
         search_term = args.get('query')
@@ -166,6 +279,14 @@ async def func(args):
             for product in walmart_results:
                 results["results"].append({
                     "store": "Walmart",
+                    **product
+                })
+
+        costco_results = await get_costco_products(search_term)
+        if isinstance(costco_results, list):
+            for product in costco_results:
+                results["results"].append({
+                    "store": "Costco",
                     **product
                 })
 

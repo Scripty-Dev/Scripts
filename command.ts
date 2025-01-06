@@ -7,35 +7,32 @@ Command executed successfully.`
 
 export const object = {
     name: 'command',
-    description: `Run a command in the terminal.
+    description: `Run system commands in the terminal.
 
-IMPORTANT: Convert natural language into the appropriate command for the user's operating system.
+IMPORTANT: This script handles file and system operations. When users mention file operations like moving, copying, or unzipping files, use THIS script, not the convert script.
 
-Windows Examples:
+Key triggers to use this script:
+- Any mention of files, folders, or directories
+- Words like "move", "copy", "unzip", "latest file"
+- References to system locations like "downloads folder", "documents", etc.
+
+Check the operating system (provided in your system prompt) and use appropriate commands:
+
+Windows:
 "move latest file in downloads to business folder" →
 "move %USERPROFILE%\\Downloads\\$(dir /b /od %USERPROFILE%\\Downloads | findstr /v /i \"desktop.ini\" | tail -1) %USERPROFILE%\\Documents\\Business"
 
-"unzip photos.zip to Pictures" →
-"tar -xf %USERPROFILE%\\photos.zip -C %USERPROFILE%\\Pictures"
-
-Unix/Linux/MacOS Examples:
+Unix/Linux/MacOS:
 "move latest file in downloads to business folder" →
 "mv $(ls -t ~/Downloads | head -n1) ~/Documents/Business"
 
-"unzip photos.zip to Pictures" →
-"unzip ~/photos.zip -d ~/Pictures"
-
-Check the operating system before converting commands. Use:
-- Windows: %USERPROFILE%, move, copy, dir
-- Unix/Linux/MacOS: ~/, mv, cp, ls
-
-Do not tell them to manually do the task. Do not explain the command translation.`,
+Do not attempt to convert these requests to unit conversions or other operations. This is specifically for file and system operations.`,
     parameters: {
         type: 'object',
         properties: {
             command: {
                 type: 'string',
-                description: 'The command to run in the terminal'
+                description: 'The system command to execute'
             }
         },
         required: ['command']

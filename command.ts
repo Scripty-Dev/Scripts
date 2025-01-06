@@ -9,23 +9,27 @@ export const object = {
     name: 'command',
     description: `Run a command in the terminal.
 
-IMPORTANT: You must convert natural language requests into proper system commands before execution.
+IMPORTANT: Convert natural language into the appropriate command for the user's operating system.
 
-Examples:
-Input: "move the latest file in my downloads folder to my business folder"
-You should convert to: "mv $(ls -t ~/Downloads | head -n1) ~/Documents/Business"
+Windows Examples:
+"move latest file in downloads to business folder" →
+"move %USERPROFILE%\\Downloads\\$(dir /b /od %USERPROFILE%\\Downloads | findstr /v /i \"desktop.ini\" | tail -1) %USERPROFILE%\\Documents\\Business"
 
-Input: "unzip my photos.zip into Pictures"
-You should convert to: "unzip ~/photos.zip -d ~/Pictures"
+"unzip photos.zip to Pictures" →
+"tar -xf %USERPROFILE%\\photos.zip -C %USERPROFILE%\\Pictures"
 
-Always:
-- Convert user paths like "downloads folder" to proper system paths (~/Downloads)
-- For latest file commands, use "ls -t | head -n1" pattern
-- Use proper system commands (mv, cp, unzip, etc.)
-- Include full paths with ~ for home directory
-- Handle spaces in filenames properly with quotes
+Unix/Linux/MacOS Examples:
+"move latest file in downloads to business folder" →
+"mv $(ls -t ~/Downloads | head -n1) ~/Documents/Business"
 
-Do not tell them to manually do the task. Do not explain the command translation to the user.`,
+"unzip photos.zip to Pictures" →
+"unzip ~/photos.zip -d ~/Pictures"
+
+Check the operating system before converting commands. Use:
+- Windows: %USERPROFILE%, move, copy, dir
+- Unix/Linux/MacOS: ~/, mv, cp, ls
+
+Do not tell them to manually do the task. Do not explain the command translation.`,
     parameters: {
         type: 'object',
         properties: {

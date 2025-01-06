@@ -3,27 +3,44 @@ import json
 import platform
 import os
 import subprocess
+from pathlib import Path
+import glob
 
 PLATFORM = platform.system().lower()
 
 async def func(args):
     """
-    Handle file operations like moving, copying, and unzipping files
+    Handle file operations like moving or copying files
     """
     try:
         operation = args.get("operation")
-        from_path = os.path.expanduser(args.get("from_path", ""))
-        to_path = os.path.expanduser(args.get("to_path", ""))
+        source = os.path.expanduser(args.get("source", ""))
+        destination = os.path.expanduser(args.get("destination", ""))
+        filename = args.get("filename", "")
 
-        if operation == "move_latest":
-            if PLATFORM == "windows":
-                cmd = f'move "{os.path.join(from_path, subprocess.check_output("dir /b /od", shell=True, text=True, cwd=from_path).strip().split()[-1])}" "{to_path}"'
+        # If a filename is provided, find its full name with extension
+        if filename:
+            pattern = os.path.join(source, f"{filename}.*")
+            matches = glob.glob(pattern)
+            if matches:
+                # Use the first match if multiple exist
+                source_path = matches[0]
             else:
-                cmd = f'mv "$(ls -t "{from_path}" | head -n1)" "{to_path}"'
-        elif operation == "copy":
-            cmd = f'{"copy" if PLATFORM == "windows" else "cp"} "{from_path}" "{to_path}"'
-        elif operation == "unzip":
-            cmd = f'{"tar -xf" if PLATFORM == "windows" else "unzip"} "{from_path}" {"-C" if PLATFORM == "windows" else "-d"} "{to_path}"'
+                return json.dumps({"error": f"No file matching '{filename}' found in {source}"})
+        else:
+            source_path = source
+
+        # Handle different operations
+        if operation == "move":
+            if PLATFORM == "windows":
+                cmd = f'move "{source_path}" "{destination}"'
+            else:
+                cmd = f'mv "{source_path}" "{destination}"'
+        elif operation == "latest":
+            if PLATFORM == "windows":
+                cmd = f'move "{os.path.join(source, subprocess.check_output("dir /b /od", shell=True, text=True, cwd=source).strip().split()[-1])}" "{destination}"'
+            else:
+                cmd = f'mv "$(ls -t "{source}" | head -n1)" "{destination}"'
         else:
             return json.dumps({"error": "Invalid operation specified"})
 
@@ -34,34 +51,38 @@ async def func(args):
 
 object = {
     "name": "file_ops",
-    "description": """Handle file operations like moving, copying, and unzipping files.
-
-This script handles file operations like moving the latest file, copying files, or unzipping archives.
+    "description": """Handle file operations like moving or copying files.
 
 Examples:
-"move the latest file in downloads to business folder"
-→ {"operation": "move_latest", "from_path": "~/Downloads", "to_path": "~/Documents/Business"}
+"move BlackGuySquinting from Downloads to Reels"
+→ {"operation": "move", "source": "~/Downloads", "destination": "~/Reels", "filename": "BlackGuySquinting"}
 
-"unzip photos.zip to Pictures"
-→ {"operation": "unzip", "from_path": "~/photos.zip", "to_path": "~/Pictures"}""",
+"move latest download to Documents"
+→ {"operation": "latest", "source": "~/Downloads", "destination": "~/Documents"}
+
+The script will automatically find the correct file regardless of its extension.""",
     "parameters": {
         "type": "object",
         "properties": {
             "operation": {
                 "type": "string",
-                "enum": ["move_latest", "copy", "unzip"],
+                "enum": ["move", "latest"],
                 "description": "Type of file operation to perform"
             },
-            "from_path": {
+            "source": {
                 "type": "string",
-                "description": "Source path (use ~ for home directory)"
+                "description": "Source directory path (use ~ for home directory)"
             },
-            "to_path": {
+            "destination": {
                 "type": "string",
-                "description": "Destination path (use ~ for home directory)"
+                "description": "Destination directory path (use ~ for home directory)"
+            },
+            "filename": {
+                "type": "string",
+                "description": "Name of the file without extension (optional)"
             }
         },
-        "required": ["operation", "from_path", "to_path"]
+        "required": ["operation", "source", "destination"]
     }
 }
 

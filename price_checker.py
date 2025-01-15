@@ -32,26 +32,7 @@ def wait_and_find_all(driver, by, value, timeout=10):
     except:
         return []
 
-def get_selenium_options():
-    options = uc.ChromeOptions()
-    options.headless = True
-    
-    # Basic browser configurations
-    options.add_argument('--disable-http2')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--start-maximized')
-    options.add_argument('--disable-extensions')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-blink-features=AutomationControlled')
-    options.add_argument('--window-size=1920,1080')
-    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-    options.add_argument('--disable-notifications')
-    options.add_argument('--ignore-certificate-errors')
-    options.add_argument('--allow-running-insecure-content')
-    options.add_argument('--enable-javascript')
-    
-    return options
+logging.basicConfig(level=logging.INFO)
 
 async def get_amazon_products(search_term):
     headers = {
@@ -187,145 +168,70 @@ async def get_walmart_products(search_term):
     except Exception as e:
         return f"Error: {str(e)}"
 
-async def get_homedepot_products(search_term):
+async def get_costco_products(search_term):
+    options = uc.ChromeOptions()
+    options.headless = True
+    
+    options.add_argument('--disable-http2')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--start-maximized')
+    options.add_argument('--disable-extensions')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_argument('--window-size=1920,1080')
+    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    options.add_argument('--disable-notifications')
+    options.add_argument('--ignore-certificate-errors')
+    options.add_argument('--allow-running-insecure-content')
+    options.add_argument('--enable-javascript')
+    
     try:
-        driver = uc.Chrome(options=get_selenium_options())
+        driver = uc.Chrome(options=options)
         driver.set_page_load_timeout(30)
         
-        url = f'https://www.homedepot.ca/search?q={search_term.replace(" ", "%20")}#!q={search_term.replace(" ", "%20")}'
+        url = f'https://www.costco.ca/s?langId=-24&keyword={search_term.replace(" ", "+")}'
         
         try:
             driver.get(url)
             WebDriverWait(driver, 20).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
-            time.sleep(1)
+            time.sleep(1)  # Consistent with other functions' delay
             
-            # Handle cookies and popups
-            cookie_button = wait_and_find(driver, By.ID, "onetrust-accept-btn-handler")
-            if cookie_button:
-                cookie_button.click()
-                
-            reject_button = wait_and_find(driver, By.XPATH, "//button[contains(text(), 'Reject')]")
-            if reject_button:
-                reject_button.click()
-                
-            confirm_button = wait_and_find(driver, By.XPATH, "//button[contains(text(), 'Confirm Store')]")
-            if confirm_button:
-                confirm_button.click()
-            
-            products = []
-            product_cards = wait_and_find_all(driver, By.CLASS_NAME, 'acl-product-card__content')
-            
-            for card in product_cards[:3]:
-                try:
-                    brand = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__title--brand')
-                    product_name = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__title--product-name')
-                    title = f"{brand.text.strip()} {product_name.text.strip()}" if brand and product_name else None
-
-                    price = 'Price not available'
-                    dollars_div = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__price-dollars')
-                    if dollars_div:
-                        dollars_span = wait_and_find(dollars_div, By.TAG_NAME, 'span')
-                        cents_span = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__price-cents')
-                        if dollars_span and cents_span:
-                            dollars_text = dollars_span.text.strip().replace('$', '')
-                            cents_text = cents_span.text.split()[0].strip()
-                            price = f"${dollars_text}.{cents_text}"
-
-                    rating = 'No rating'
-                    rating_link = wait_and_find(card, By.CSS_SELECTOR, "a[class*='acl-rating__link']")
-                    if rating_link:
-                        rating_text = rating_link.get_attribute('aria-label')
-                        try:
-                            rating = rating_text.split('of ')[1].split(' out')[0]
-                            rating = f"{float(rating):.1f} out of 5 stars"
-                        except:
-                            pass
-
-                    link = wait_and_find(card, By.TAG_NAME, 'a')
-                    url = f"https://www.homedepot.ca{link.get_attribute('href')}" if link else None
-
-                    if title and url:
-                        products.append({
-                            'title': title,
-                            'price': price,
-                            'rating': rating,
-                            'url': url
-                        })
-
-                except Exception:
-                    continue
-
-            return products
-
-        except Exception as e:
-            return f"Error: {str(e)}"
-            
-    except Exception as e:
-        return f"Error: {str(e)}"
-        
-    finally:
-        driver.quit()
-        
-async def get_homedepot_products(search_term):
-    try:
-        driver = uc.Chrome(options=get_selenium_options())
-        driver.set_page_load_timeout(30)
-        
-        url = f'https://www.homedepot.ca/search?q={search_term.replace(" ", "%20")}#!q={search_term.replace(" ", "%20")}'
-        
-        try:
-            driver.get(url)
-            WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            # Accept cookies if present
+            cookie_button = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, "onetrust-accept-btn-handler"))
             )
-            time.sleep(1)
-            
-            # Handle cookies and popups
-            cookie_button = wait_and_find(driver, By.ID, "onetrust-accept-btn-handler")
             if cookie_button:
                 cookie_button.click()
-                
-            reject_button = wait_and_find(driver, By.XPATH, "//button[contains(text(), 'Reject')]")
-            if reject_button:
-                reject_button.click()
-                
-            confirm_button = wait_and_find(driver, By.XPATH, "//button[contains(text(), 'Confirm Store')]")
-            if confirm_button:
-                confirm_button.click()
             
             products = []
-            product_cards = wait_and_find_all(driver, By.CLASS_NAME, 'acl-product-card__content')
+            product_tiles = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, '[data-testid^="ProductTile_"]'))
+            )
             
-            for card in product_cards[:3]:
+            for tile in product_tiles[:3]:  # Consistent with other functions' limit
                 try:
-                    brand = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__title--brand')
-                    product_name = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__title--product-name')
-                    title = f"{brand.text.strip()} {product_name.text.strip()}" if brand and product_name else None
-
+                    link_elem = tile.find_element(By.CSS_SELECTOR, 'a[data-testid="Link"]')
+                    if not link_elem:
+                        continue
+                    
+                    url = link_elem.get_attribute('href')
+                    title_span = link_elem.find_element(By.TAG_NAME, 'span')
+                    title = title_span.text if title_span else None
+                    
                     price = 'Price not available'
-                    dollars_div = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__price-dollars')
-                    if dollars_div:
-                        dollars_span = wait_and_find(dollars_div, By.TAG_NAME, 'span')
-                        cents_span = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__price-cents')
-                        if dollars_span and cents_span:
-                            dollars_text = dollars_span.text.strip().replace('$', '')
-                            cents_text = cents_span.text.split()[0].strip()
-                            price = f"${dollars_text}.{cents_text}"
-
+                    price_elem = tile.find_element(By.CSS_SELECTOR, '[data-testid^="Text_Price_"]')
+                    if price_elem:
+                        price = price_elem.text
+                    
                     rating = 'No rating'
-                    rating_link = wait_and_find(card, By.CSS_SELECTOR, "a[class*='acl-rating__link']")
-                    if rating_link:
-                        rating_text = rating_link.get_attribute('aria-label')
-                        try:
-                            rating = rating_text.split('of ')[1].split(' out')[0]
-                            rating = f"{float(rating):.1f} out of 5 stars"
-                        except:
-                            pass
-
-                    link = wait_and_find(card, By.TAG_NAME, 'a')
-                    url = f"https://www.homedepot.ca{link.get_attribute('href')}" if link else None
+                    rating_div = tile.find_element(By.CSS_SELECTOR, '[role="img"][aria-label*="rating"]')
+                    if rating_div:
+                        rating_text = rating_div.get_attribute('aria-label')
+                        if 'out of 5 stars' in rating_text:
+                            rating = rating_text.split('Average rating is ')[1].split(' stars')[0] + ' stars'
 
                     if title and url:
                         products.append({
@@ -360,28 +266,29 @@ async def func(args):
             "results": []
         }
 
-        # Gather all search tasks
-        tasks = [
-            get_amazon_products(search_term),
-            get_walmart_products(search_term),
-            get_costco_products(search_term),
-            get_homedepot_products(search_term)
-        ]
-        
-        # Execute all searches concurrently
-        all_results = await asyncio.gather(*tasks)
-        
-        # Map store names to results
-        stores = ["Amazon", "Walmart", "Costco", "Home Depot"]
-        
-        # Process results from each store
-        for store, store_results in zip(stores, all_results):
-            if isinstance(store_results, list):
-                for product in store_results:
-                    results["results"].append({
-                        "store": store,
-                        **product
-                    })
+        amazon_results = await get_amazon_products(search_term)
+        if isinstance(amazon_results, list):
+            for product in amazon_results:
+                results["results"].append({
+                    "store": "Amazon",
+                    **product
+                })
+
+        walmart_results = await get_walmart_products(search_term)
+        if isinstance(walmart_results, list):
+            for product in walmart_results:
+                results["results"].append({
+                    "store": "Walmart",
+                    **product
+                })
+
+        costco_results = await get_costco_products(search_term)
+        if isinstance(costco_results, list):
+            for product in costco_results:
+                results["results"].append({
+                    "store": "Costco",
+                    **product
+                })
 
         return json.dumps(results)
 

@@ -187,12 +187,12 @@ async def get_walmart_products(search_term):
     except Exception as e:
         return f"Error: {str(e)}"
 
-async def get_costco_products(search_term):
+async def get_homedepot_products(search_term):
     try:
         driver = uc.Chrome(options=get_selenium_options())
         driver.set_page_load_timeout(30)
         
-        url = f'https://www.costco.ca/s?langId=-24&keyword={search_term.replace(" ", "+")}'
+        url = f'https://www.homedepot.ca/search?q={search_term.replace(" ", "%20")}#!q={search_term.replace(" ", "%20")}'
         
         try:
             driver.get(url)
@@ -201,42 +201,51 @@ async def get_costco_products(search_term):
             )
             time.sleep(1)
             
-            # Handle cookies
+            # Handle cookies and popups
             cookie_button = wait_and_find(driver, By.ID, "onetrust-accept-btn-handler")
             if cookie_button:
                 cookie_button.click()
+                
+            reject_button = wait_and_find(driver, By.XPATH, "//button[contains(text(), 'Reject')]")
+            if reject_button:
+                reject_button.click()
+                
+            confirm_button = wait_and_find(driver, By.XPATH, "//button[contains(text(), 'Confirm Store')]")
+            if confirm_button:
+                confirm_button.click()
             
             products = []
+            product_cards = wait_and_find_all(driver, By.CLASS_NAME, 'acl-product-card__content')
             
-            # Look for product tiles by data-testid
-            product_tiles = wait_and_find_all(driver, By.CSS_SELECTOR, '[data-testid^="ProductTile_"]')
-            
-            for tile in product_tiles[:3]:  # Get first 3 products
+            for card in product_cards[:3]:
                 try:
-                    # Get main link and title from anchor tag
-                    link_elem = wait_and_find(tile, By.CSS_SELECTOR, 'a[data-testid="Link"]')
-                    if not link_elem:
-                        continue
-                    
-                    url = link_elem.get_attribute('href')
-                    title_span = link_elem.find_element(By.TAG_NAME, 'span')
-                    title = title_span.text if title_span else None
-                    
-                    # Get price from specific data-testid
+                    brand = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__title--brand')
+                    product_name = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__title--product-name')
+                    title = f"{brand.text.strip()} {product_name.text.strip()}" if brand and product_name else None
+
                     price = 'Price not available'
-                    price_elem = wait_and_find(tile, By.CSS_SELECTOR, '[data-testid^="Text_Price_"]')
-                    if price_elem:
-                        price = price_elem.text
-                    
-                    # Get rating from aria-label attribute
+                    dollars_div = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__price-dollars')
+                    if dollars_div:
+                        dollars_span = wait_and_find(dollars_div, By.TAG_NAME, 'span')
+                        cents_span = wait_and_find(card, By.CLASS_NAME, 'acl-product-card__price-cents')
+                        if dollars_span and cents_span:
+                            dollars_text = dollars_span.text.strip().replace('$', '')
+                            cents_text = cents_span.text.split()[0].strip()
+                            price = f"${dollars_text}.{cents_text}"
+
                     rating = 'No rating'
-                    rating_div = wait_and_find(tile, By.CSS_SELECTOR, '[role="img"][aria-label*="rating"]')
-                    if rating_div:
-                        rating_text = rating_div.get_attribute('aria-label')
-                        if 'out of 5 stars' in rating_text:
-                            rating = rating_text.split('Average rating is ')[1].split(' stars')[0]
-                            rating = f"{rating} stars"
-                    
+                    rating_link = wait_and_find(card, By.CSS_SELECTOR, "a[class*='acl-rating__link']")
+                    if rating_link:
+                        rating_text = rating_link.get_attribute('aria-label')
+                        try:
+                            rating = rating_text.split('of ')[1].split(' out')[0]
+                            rating = f"{float(rating):.1f} out of 5 stars"
+                        except:
+                            pass
+
+                    link = wait_and_find(card, By.TAG_NAME, 'a')
+                    url = f"https://www.homedepot.ca{link.get_attribute('href')}" if link else None
+
                     if title and url:
                         products.append({
                             'title': title,

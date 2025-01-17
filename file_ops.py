@@ -2,9 +2,8 @@ import sys
 import json
 import platform
 import os
-import subprocess
+import shutil
 from pathlib import Path
-import glob
 
 PLATFORM = platform.system().lower()
 
@@ -18,33 +17,45 @@ async def func(args):
         destination = os.path.expanduser(args.get("destination", ""))
         filename = args.get("filename", "")
 
-        # If a filename is provided, find its full name with extension
-        if filename:
-            pattern = os.path.join(source, f"{filename}.*")
-            matches = glob.glob(pattern)
-            if matches:
-                # Use the first match if multiple exist
-                source_path = matches[0]
-            else:
-                return json.dumps({"error": f"No file matching '{filename}' found in {source}"})
-        else:
-            source_path = source
+        # Ensure source and destination are absolute paths
+        source = os.path.abspath(source)
+        destination = os.path.abspath(destination)
 
-        # Handle different operations
+        # Verify directories exist
+        if not os.path.exists(source):
+            return json.dumps({"error": f"Source directory does not exist: {source}"})
+        if not os.path.exists(destination):
+            return json.dumps({"error": f"Destination directory does not exist: {destination}"})
+
         if operation == "move":
-            if PLATFORM == "windows":
-                cmd = f'move "{source_path}" "{destination}"'
+            if filename:
+                # Find file with any extension
+                pattern = os.path.join(source, f"{filename}.*")
+                matches = list(Path(source).glob(f"{filename}.*"))
+                if not matches:
+                    return json.dumps({"error": f"No file matching '{filename}' found in {source}"})
+                source_path = str(matches[0])
             else:
-                cmd = f'mv "{source_path}" "{destination}"'
+                source_path = source
+
+            # Move the file
+            shutil.move(source_path, destination)
+
         elif operation == "latest":
-            if PLATFORM == "windows":
-                cmd = f'move "{os.path.join(source, subprocess.check_output("dir /b /od", shell=True, text=True, cwd=source).strip().split()[-1])}" "{destination}"'
-            else:
-                cmd = f'mv "$(ls -t "{source}" | head -n1)" "{destination}"'
+            # Get all files in source directory with their timestamps
+            files = [(f, os.path.getmtime(f)) for f in Path(source).iterdir() if f.is_file()]
+            if not files:
+                return json.dumps({"error": f"No files found in {source}"})
+            
+            # Sort by modification time and get the latest
+            latest_file = max(files, key=lambda x: x[1])[0]
+            
+            # Move the file
+            dest_path = os.path.join(destination, latest_file.name)
+            shutil.move(str(latest_file), dest_path)
         else:
             return json.dumps({"error": "Invalid operation specified"})
 
-        subprocess.run(cmd, shell=True, check=True)
         return json.dumps({"message": f"File operation {operation} completed successfully"})
     except Exception as e:
         return json.dumps({"error": str(e)})

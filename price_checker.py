@@ -309,15 +309,3 @@ object = {
         "required": ["query"]
     }
 }
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        if sys.argv[1] == '--get-exports':
-            print(json.dumps({"object": object}))
-        else:
-            try:
-                args = json.loads(sys.argv[1])
-                result = asyncio.run(func(args))
-                print(result)
-            except Exception as e:
-                print(json.dumps({"error": str(e)}))

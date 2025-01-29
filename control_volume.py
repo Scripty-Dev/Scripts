@@ -1,4 +1,3 @@
-import sys
 import json
 import platform
 import subprocess
@@ -67,7 +66,7 @@ async def func(args):
         return json.dumps({"error": str(e)})
 
 object = {
-    "name": "controlVolume",
+    "name": "control_volume",
     "description": f"Control system volume on {PLATFORM.capitalize()}. Required format: For setting volume use {{\"set\": number}} where number is 0-100, or for adjusting volume use {{\"adjust\": number}} where number is -100 to +100.",
     "parameters": {
         "type": "object",
@@ -88,15 +87,6 @@ object = {
     }
 }
 
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        if sys.argv[1] == '--get-exports':
-            print(json.dumps({"object": object}))
-        else:
-            try:
-                args = json.loads(sys.argv[1])
-                import asyncio
-                result = asyncio.run(func(args))
-                print(result)
-            except Exception as e:
-                print(json.dumps({"error": str(e)}))
+modules = []
+if PLATFORM == "windows":
+    modules.extend(['comtypes', 'pycaw'])

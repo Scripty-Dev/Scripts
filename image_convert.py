@@ -152,7 +152,7 @@ async def handle_cleanup_response(response, context):
     })
 
 object = {
-    "name": "convertImage",
+    "name": "image_convert",
     "description": "Convert images between formats (PNG, JPG, WEBP, GIF). Supports batch conversion with wildcards (*.jpg).",
     "parameters": {
         "type": "object",
@@ -179,21 +179,3 @@ object = {
         "required": ["filename"]
     }
 }
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        if sys.argv[1] == '--get-exports':
-            print(json.dumps({"object": object}))
-        else:
-            try:
-                args = json.loads(sys.argv[1].replace("'", '"'))
-                import asyncio
-                if 'prompt_response' in args and 'context' in args:
-                    result = asyncio.run(handle_cleanup_response(args['prompt_response'], args['context']))
-                else:
-                    result = asyncio.run(func(args))
-                print(result)
-            except json.JSONDecodeError as e:
-                print(json.dumps({"error": f"JSON Error: {str(e)}"}))
-            except Exception as e:
-                print(json.dumps({"error": f"Error: {str(e)}"}))

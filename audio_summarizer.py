@@ -166,18 +166,3 @@ object = {
         "required": ["operation"]
     }
 }
-
-if __name__ == '__main__':
-    if "--background" in sys.argv:
-        recorder.background_record()
-    elif len(sys.argv) > 1:
-        if sys.argv[1] == '--get-exports':
-            print(json.dumps({"object": object}))
-        else:
-            try:
-                args = json.loads(sys.argv[1])
-                import asyncio
-                result = asyncio.run(func(args))
-                print(result)
-            except Exception as e:
-                print(json.dumps({"error": str(e)}))

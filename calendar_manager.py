@@ -14,7 +14,7 @@ def get_user_timezone():
 def get_calendar_events():
     try:
         response = requests.get(
-            f"https://scripty.me/api/assistant/calendar/events?token={authToken}"
+            f"https://scripty.me/api/assistant/calendar/events?token={authtoken}"
         )
         response.raise_for_status()
         return response.json()
@@ -81,7 +81,7 @@ def create_calendar_event(summary, start_time, end_time=None, description=None):
         
         # Send the request to create the event
         response = requests.post(
-            f"https://scripty.me/api/assistant/calendar/events?token={authToken}", 
+            f"https://scripty.me/api/assistant/calendar/events?token={authtoken}", 
             json=data
         )
         response.raise_for_status()

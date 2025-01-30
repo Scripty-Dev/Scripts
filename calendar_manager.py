@@ -25,41 +25,43 @@ def get_calendar_events():
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-# Function to parse natural language time strings into datetime objects
 def parse_time(time_str):
-    now = datetime.now()
+    now = datetime.now(pytz.timezone(get_user_timezone()))  # Get current time in user's timezone
     if time_str.lower().startswith("tomorrow"):
-        # Handle "tomorrow" time strings
         time_part = time_str.split(" ", 1)[1]
         try:
-            # Try parsing as 24-hour format (e.g., "17:00")
             time_obj = datetime.strptime(time_part, "%H:%M")
         except ValueError:
-            # Try parsing as 12-hour format (e.g., "5:00 PM")
             time_obj = datetime.strptime(time_part, "%I:%M %p")
         tomorrow = now + timedelta(days=1)
         parsed_time = datetime.combine(tomorrow.date(), time_obj.time())
+        # Localize the datetime to user's timezone
+        user_tz = pytz.timezone(get_user_timezone())
+        return user_tz.localize(parsed_time)
     else:
-        # Handle ISO format or other formats
         try:
             parsed_time = datetime.fromisoformat(time_str)
+            if parsed_time.tzinfo is None:  # If the parsed time is naive
+                user_tz = pytz.timezone(get_user_timezone())
+                return user_tz.localize(parsed_time)
+            return parsed_time
         except ValueError:
-            # Fallback to assuming it's a time string for today
             try:
                 time_obj = datetime.strptime(time_str, "%H:%M")
             except ValueError:
                 time_obj = datetime.strptime(time_str, "%I:%M %p")
             parsed_time = datetime.combine(now.date(), time_obj.time())
-    
-    return parsed_time
+            # Localize the datetime to user's timezone
+            user_tz = pytz.timezone(get_user_timezone())
+            return user_tz.localize(parsed_time)
 
-# Function to create a calendar event
 def create_calendar_event(summary, start_time, end_time=None, description=None):
     try:
         # Get user's local timezone
         timezone = get_user_timezone()
+        user_tz = pytz.timezone(timezone)
         
-        # Parse natural language time strings into datetime objects
+        # Parse natural language time strings into timezone-aware datetime objects
         start_time_dt = parse_time(start_time)
         if end_time:
             end_time_dt = parse_time(end_time)
@@ -67,9 +69,11 @@ def create_calendar_event(summary, start_time, end_time=None, description=None):
             # Default to 1 hour after start_time if end_time is not provided
             end_time_dt = start_time_dt + timedelta(hours=1)
         
-        # Convert datetime objects to ISO format
+        # Convert datetime objects to ISO format with timezone
         start_time_iso = start_time_dt.isoformat()
         end_time_iso = end_time_dt.isoformat()
+        
+        # Rest of the function remains the same...
         
         # Prepare the data payload
         data = {

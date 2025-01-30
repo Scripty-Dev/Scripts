@@ -19,15 +19,20 @@ def get_calendar_events():
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        return {"success": False, "error": str(e)}x
+        return {"success": False, "error": str(e)}
 
-# Function to parse natural language time strings into ISO format
+# Function to parse natural language time strings into datetime objects
 def parse_time(time_str):
     now = datetime.now()
     if time_str.lower().startswith("tomorrow"):
         # Handle "tomorrow" time strings
         time_part = time_str.split(" ", 1)[1]
-        time_obj = datetime.strptime(time_part, "%I:%M %p")
+        try:
+            # Try parsing as 24-hour format (e.g., "17:00")
+            time_obj = datetime.strptime(time_part, "%H:%M")
+        except ValueError:
+            # Try parsing as 12-hour format (e.g., "5:00 PM")
+            time_obj = datetime.strptime(time_part, "%I:%M %p")
         tomorrow = now + timedelta(days=1)
         parsed_time = datetime.combine(tomorrow.date(), time_obj.time())
     else:
@@ -36,7 +41,10 @@ def parse_time(time_str):
             parsed_time = datetime.fromisoformat(time_str)
         except ValueError:
             # Fallback to assuming it's a time string for today
-            time_obj = datetime.strptime(time_str, "%I:%M %p")
+            try:
+                time_obj = datetime.strptime(time_str, "%H:%M")
+            except ValueError:
+                time_obj = datetime.strptime(time_str, "%I:%M %p")
             parsed_time = datetime.combine(now.date(), time_obj.time())
     
     return parsed_time

@@ -211,3 +211,5 @@ object = {
         "required": ["command"]
     }
 }
+
+modules = ['tkinter']

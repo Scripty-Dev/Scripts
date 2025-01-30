@@ -290,3 +290,5 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+
+modules = ['undetected-chromedriver', 'selenium', 'PyPDF2', 'python-docx', 'tkinter']

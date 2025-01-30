@@ -165,3 +165,5 @@ object = {
         "required": ["operation"]
     }
 }
+
+modules = ['sounddevice', 'soundfile', 'numpy']

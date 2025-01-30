@@ -89,3 +89,5 @@ object = {
         "required": ["operation"]
     }
 }
+
+modules = ['plyer', 'psutil']

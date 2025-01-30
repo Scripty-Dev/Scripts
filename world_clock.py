@@ -86,3 +86,5 @@ object = {
         "required": ["location"]
     }
 }
+
+modules = ['pytz']

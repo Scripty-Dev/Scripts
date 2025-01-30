@@ -38,3 +38,5 @@ object = {
         "required": ["audio_path"]
     }
 }
+
+modules = ['requests']

@@ -370,3 +370,5 @@ object = {
         "required": ["command"]
     }
 }
+
+modules = ['tkinter', 'plyer']

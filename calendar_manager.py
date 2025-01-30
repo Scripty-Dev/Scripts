@@ -105,3 +105,5 @@ object = {
         "required": ["action"]
     }
 }
+
+modules = ['requests', 'tzlocal']

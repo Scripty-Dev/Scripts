@@ -1,8 +1,7 @@
 import json
 import requests
 import pytz
-from datetime import datetime
-from dateutil import parser
+from datetime import datetime, timedelta
 
 # Function to get the user's local timezone
 def get_user_timezone():
@@ -22,6 +21,26 @@ def get_calendar_events():
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+# Function to parse natural language time strings into ISO format
+def parse_time(time_str):
+    now = datetime.now()
+    if time_str.lower().startswith("tomorrow"):
+        # Handle "tomorrow" time strings
+        time_part = time_str.split(" ", 1)[1]
+        time_obj = datetime.strptime(time_part, "%I:%M %p")
+        tomorrow = now + timedelta(days=1)
+        parsed_time = datetime.combine(tomorrow.date(), time_obj.time())
+    else:
+        # Handle ISO format or other formats
+        try:
+            parsed_time = datetime.fromisoformat(time_str)
+        except ValueError:
+            # Fallback to assuming it's a time string for today
+            time_obj = datetime.strptime(time_str, "%I:%M %p")
+            parsed_time = datetime.combine(now.date(), time_obj.time())
+    
+    return parsed_time.isoformat()
+
 # Function to create a calendar event
 def create_calendar_event(summary, start_time, end_time, description=None):
     try:
@@ -29,8 +48,8 @@ def create_calendar_event(summary, start_time, end_time, description=None):
         timezone = get_user_timezone()
         
         # Parse natural language time strings into ISO format
-        start_time_iso = parser.parse(start_time).isoformat()
-        end_time_iso = parser.parse(end_time).isoformat()
+        start_time_iso = parse_time(start_time)
+        end_time_iso = parse_time(end_time)
         
         # Prepare the data payload
         data = {
@@ -122,4 +141,4 @@ object = {
 }
 
 # Required modules
-modules = ['requests', 'pytz', 'dateutil']
+modules = ['requests', 'pytz']

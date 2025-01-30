@@ -1,22 +1,25 @@
 import json
 import requests
-import pytz
-from tzlocal import get_localzone
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+import platform
+from tzlocal import get_localzone
 
 def get_user_timezone():
     try:
         local_tz = get_localzone()
-        return local_tz.key  # Get proper IANA timezone like "America/New_York"
+        # Extract the IANA timezone string
+        if hasattr(local_tz, 'key'):
+            return local_tz.key
+        elif hasattr(local_tz, 'zone'):
+            return local_tz.zone
+        else:
+            return str(local_tz)  # Fallback to string representation
     except:
         return 'UTC'
 
 def parse_time(time_str):
-    try:
-        local_tz = get_localzone()
-    except:
-        local_tz = pytz.UTC
-        
+    local_tz = ZoneInfo(get_user_timezone())
     now = datetime.now(local_tz)
     
     if time_str.lower().startswith("tomorrow"):
@@ -30,12 +33,12 @@ def parse_time(time_str):
         
         tomorrow = now + timedelta(days=1)
         naive_time = datetime.combine(tomorrow.date(), time_obj.time())
-        return local_tz.localize(naive_time)
+        return naive_time.replace(tzinfo=local_tz)
     
     try:
         parsed_time = datetime.fromisoformat(time_str)
         if parsed_time.tzinfo is None:
-            return local_tz.localize(parsed_time)
+            return parsed_time.replace(tzinfo=local_tz)
         return parsed_time
     except ValueError:
         try:
@@ -43,13 +46,12 @@ def parse_time(time_str):
         except ValueError:
             time_obj = datetime.strptime(time_str, "%I:%M %p")
         naive_time = datetime.combine(now.date(), time_obj.time())
-        return local_tz.localize(naive_time)
+        return naive_time.replace(tzinfo=local_tz)
 
 def create_calendar_event(summary, start_time, end_time=None, description=None):
     try:
         # Get the IANA timezone string
-        local_tz = get_localzone()
-        timezone = local_tz.key  # Get proper IANA timezone
+        timezone = get_user_timezone()
         
         # Parse times and ensure they're timezone-aware
         start_time_dt = parse_time(start_time)
@@ -62,7 +64,7 @@ def create_calendar_event(summary, start_time, end_time=None, description=None):
             "summary": summary,
             "startTime": start_time_dt.isoformat(),
             "endTime": end_time_dt.isoformat(),
-            "timeZone": timezone  # This will be an IANA timezone like "America/New_York"
+            "timeZone": timezone
         }
         
         if description:
@@ -162,4 +164,4 @@ object = {
     }
 }
 
-modules = ['requests', 'pytz', 'tzlocal']
+modules = ['requests', 'tzlocal']

@@ -1,8 +1,5 @@
-import sys
 import json
 import requests
-from datetime import datetime
-import pytz
 from tzlocal import get_localzone
 
 def get_user_timezone():

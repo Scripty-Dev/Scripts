@@ -3,7 +3,6 @@ import json
 import sounddevice as sd
 import soundfile as sf
 import numpy as np
-import threading
 import time
 from datetime import datetime
 from pathlib import Path

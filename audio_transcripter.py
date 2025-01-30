@@ -1,8 +1,6 @@
-import sys
 import json
 import requests
 from pathlib import Path
-import os
 
 def transcribe_file(filepath):
     try:

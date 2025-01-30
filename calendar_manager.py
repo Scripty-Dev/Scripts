@@ -7,10 +7,11 @@ def get_user_timezone():
     try:
         return str(pytz.tzlocal())
     except:
-        return str(Intl.DateTimeFormat().resolvedOptions().timeZone)
+        return 'UTC'  # Fallback to UTC if tzlocal fails
 
 def parse_time(time_str):
-    now = datetime.now(pytz.timezone(get_user_timezone()))  # Get current time in user's timezone
+    user_tz = pytz.timezone(get_user_timezone())
+    now = datetime.now(user_tz)  # Get current time in user's timezone
     
     if time_str.lower().startswith("tomorrow"):
         time_part = time_str.split(" ", 1)[1]
@@ -23,15 +24,12 @@ def parse_time(time_str):
         
         tomorrow = now + timedelta(days=1)
         naive_time = datetime.combine(tomorrow.date(), time_obj.time())
-        # Localize the time to user's timezone
-        user_tz = pytz.timezone(get_user_timezone())
         return user_tz.localize(naive_time)
     
     # Handle ISO format or other formats
     try:
         parsed_time = datetime.fromisoformat(time_str)
         if parsed_time.tzinfo is None:  # If the parsed time is naive
-            user_tz = pytz.timezone(get_user_timezone())
             return user_tz.localize(parsed_time)
         return parsed_time
     except ValueError:
@@ -40,8 +38,6 @@ def parse_time(time_str):
         except ValueError:
             time_obj = datetime.strptime(time_str, "%I:%M %p")
         naive_time = datetime.combine(now.date(), time_obj.time())
-        # Localize the time to user's timezone
-        user_tz = pytz.timezone(get_user_timezone())
         return user_tz.localize(naive_time)
 
 def create_calendar_event(summary, start_time, end_time=None, description=None):
@@ -58,8 +54,8 @@ def create_calendar_event(summary, start_time, end_time=None, description=None):
         # Format with timezone info
         data = {
             "summary": summary,
-            "startTime": start_time_dt.isoformat(),  # This will include timezone info
-            "endTime": end_time_dt.isoformat(),      # This will include timezone info
+            "startTime": start_time_dt.isoformat(),
+            "endTime": end_time_dt.isoformat(),
             "timeZone": timezone
         }
         
@@ -127,7 +123,7 @@ async def func(args):
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
 
-# Function definition remains the same
+# Function definition for the API
 object = {
     "name": "calendar_manager",
     "description": "Manage Google Calendar events using server API. Times are automatically handled in your local timezone.",

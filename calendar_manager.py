@@ -13,8 +13,12 @@ def get_user_timezone():
 # Function to fetch calendar events
 def get_calendar_events():
     try:
+        headers = {
+            "Authorization": f"Bearer {authtoken}"
+        }
         response = requests.get(
-            f"https://scripty.me/api/assistant/calendar/events?token={authtoken}"
+            "https://scripty.me/api/assistant/calendar/events",
+            headers=headers
         )
         response.raise_for_status()
         return response.json()
@@ -80,8 +84,12 @@ def create_calendar_event(summary, start_time, end_time=None, description=None):
             data["description"] = description
         
         # Send the request to create the event
+        headers = {
+            "Authorization": f"Bearer {authtoken}"
+        }
         response = requests.post(
-            f"https://scripty.me/api/assistant/calendar/events?token={authtoken}", 
+            "https://scripty.me/api/assistant/calendar/events",
+            headers=headers,
             json=data
         )
         response.raise_for_status()

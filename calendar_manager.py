@@ -14,12 +14,12 @@ def get_user_timezone():
 def get_calendar_events():
     try:
         response = requests.get(
-            f"https://scripty.me/api/assistant/calendar/events?token={config['token']}"
+            f"https://scripty.me/api/assistant/calendar/events?token={authToken}"
         )
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e)}x
 
 # Function to parse natural language time strings into ISO format
 def parse_time(time_str):

@@ -1,12 +1,35 @@
+import sys
 import json
 import requests
+from datetime import datetime
+import pytz
 from tzlocal import get_localzone
+from dateutil.parser import parse
+import parsedatetime
+
+# Initialize the natural language date parser
+cal = parsedatetime.Calendar()
 
 def get_user_timezone():
     try:
         return str(get_localzone())
     except:
         return 'UTC'
+
+def parse_time(time_str):
+    try:
+        # First try dateutil parser
+        try:
+            dt = parse(time_str)
+            return dt.isoformat()
+        except:
+            # If that fails, try parsedatetime
+            time_struct, parse_status = cal.parse(time_str)
+            if parse_status == 0:
+                raise ValueError("Could not parse time string")
+            return datetime(*time_struct[:6]).isoformat()
+    except Exception as e:
+        raise ValueError(f"Could not parse time: {time_str}. Please use format like 'Tomorrow at 5pm' or '2024-01-30T15:00:00'")
 
 def get_calendar_events():
     try:
@@ -20,14 +43,17 @@ def get_calendar_events():
 
 def create_calendar_event(summary, description, start_time, end_time):
     try:
-        # Get user's local timezone
+        # Parse the natural language times into ISO format
+        start_iso = parse_time(start_time)
+        end_iso = parse_time(end_time)
+        
         timezone = get_user_timezone()
         
         data = {
             "summary": summary,
             "description": description,
-            "startTime": start_time,
-            "endTime": end_time,
+            "startTime": start_iso,
+            "endTime": end_iso,
             "timeZone": timezone
         }
         
@@ -37,6 +63,8 @@ def create_calendar_event(summary, description, start_time, end_time):
         )
         response.raise_for_status()
         return response.json()
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -76,7 +104,7 @@ async def func(args):
 
 object = {
     "name": "calendar_manager",
-    "description": "Manage Google Calendar events using server API. Times are automatically handled in your local timezone.",
+    "description": "Manage Google Calendar events using server API. Supports natural language time inputs like 'Tomorrow at 5pm'.",
     "parameters": {
         "type": "object",
         "properties": {
@@ -95,15 +123,15 @@ object = {
             },
             "start_time": {
                 "type": "string",
-                "description": "Event start time in ISO format (e.g., '2024-01-30T15:00:00')"
+                "description": "Event start time - supports natural language like 'Tomorrow at 5pm' or ISO format"
             },
             "end_time": {
                 "type": "string",
-                "description": "Event end time in ISO format (e.g., '2024-01-30T16:00:00')"
+                "description": "Event end time - supports natural language like 'Tomorrow at 6pm' or ISO format"
             }
         },
         "required": ["action"]
     }
 }
 
-modules = ['requests', 'tzlocal']
+modules = ['requests','pytz','tzlocal','python-dateutil', 'parsedatetime']

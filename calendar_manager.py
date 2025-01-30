@@ -1,10 +1,11 @@
 import json
 import requests
-from tzlocal import get_localzone
+import pytz
+from datetime import datetime
 
 def get_user_timezone():
     try:
-        return str(get_localzone())
+        return str(pytz.tzlocal())
     except:
         return 'UTC'
 
@@ -45,7 +46,7 @@ async def func(args):
         action = args.get("action")
         if not action:
             return json.dumps({"success": False, "error": "Action is required"})
-
+            
         if action == "get_events":
             return json.dumps(get_calendar_events())
         
@@ -70,7 +71,6 @@ async def func(args):
                 "success": False, 
                 "error": f"Unknown action: {action}"
             })
-
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
 
@@ -106,4 +106,4 @@ object = {
     }
 }
 
-modules = ['requests', 'tzlocal']
+modules = ['requests', 'pytz']

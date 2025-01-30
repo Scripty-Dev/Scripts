@@ -39,17 +39,25 @@ def parse_time(time_str):
             time_obj = datetime.strptime(time_str, "%I:%M %p")
             parsed_time = datetime.combine(now.date(), time_obj.time())
     
-    return parsed_time.isoformat()
+    return parsed_time
 
 # Function to create a calendar event
-def create_calendar_event(summary, start_time, end_time, description=None):
+def create_calendar_event(summary, start_time, end_time=None, description=None):
     try:
         # Get user's local timezone
         timezone = get_user_timezone()
         
-        # Parse natural language time strings into ISO format
-        start_time_iso = parse_time(start_time)
-        end_time_iso = parse_time(end_time)
+        # Parse natural language time strings into datetime objects
+        start_time_dt = parse_time(start_time)
+        if end_time:
+            end_time_dt = parse_time(end_time)
+        else:
+            # Default to 1 hour after start_time if end_time is not provided
+            end_time_dt = start_time_dt + timedelta(hours=1)
+        
+        # Convert datetime objects to ISO format
+        start_time_iso = start_time_dt.isoformat()
+        end_time_iso = end_time_dt.isoformat()
         
         # Prepare the data payload
         data = {
@@ -84,7 +92,7 @@ async def func(args):
             return json.dumps(get_calendar_events())
         
         elif action == "create_event":
-            required_fields = ["summary", "start_time", "end_time"]
+            required_fields = ["summary", "start_time"]
             missing_fields = [field for field in required_fields if field not in args]
             if missing_fields:
                 return json.dumps({
@@ -95,7 +103,7 @@ async def func(args):
             return json.dumps(create_calendar_event(
                 args["summary"],
                 args["start_time"],
-                args["end_time"],
+                args.get("end_time"),  # Optional field
                 args.get("description")  # Optional field
             ))
         
@@ -133,7 +141,7 @@ object = {
             },
             "end_time": {
                 "type": "string",
-                "description": "Event end time in natural language or ISO format (e.g., 'tomorrow 6:00 PM' or '2024-01-30T16:00:00')"
+                "description": "Event end time in natural language or ISO format (e.g., 'tomorrow 6:00 PM' or '2024-01-30T16:00:00'). If not provided, defaults to 1 hour after start_time."
             }
         },
         "required": ["action"]

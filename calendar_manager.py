@@ -81,7 +81,7 @@ def create_calendar_event(summary, start_time, end_time=None, description=None):
         
         # Send the request to create the event
         response = requests.post(
-            f"https://scripty.me/api/assistant/calendar/events?token={config['token']}", 
+            f"https://scripty.me/api/assistant/calendar/events?token={authToken}", 
             json=data
         )
         response.raise_for_status()

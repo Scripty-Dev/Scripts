@@ -1,5 +1,4 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
+import customtkinter as ctk
 import logging
 import time
 import json
@@ -13,7 +12,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import PyPDF2
 import docx
-import re
+
+# Set theme and color scheme
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("dark-blue")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -189,106 +191,183 @@ class LinkedInAutoApply:
             return True
         return False
 
-class LoginWindow:
+class ModernLinkedInGUI:
     def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("LinkedIn Auto Apply")
-        self.root.geometry("400x200")
+        self.window = ctk.CTk()
+        self.window.title("LinkedIn Auto Apply")
+        self.window.geometry("800x600")
+        self.window.configure(fg_color="#1a1a1a")
         
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        x = (screen_width/2) - (400/2)
-        y = (screen_height/2) - (200/2)
-        self.root.geometry(f'400x200+{int(x)}+{int(y)}')
+        self.linkedin = LinkedInAutoApply()
+        self.setup_login_screen()
         
-        style = ttk.Style()
-        style.configure('TLabel', padding=5)
-        style.configure('TButton', padding=5)
-        style.configure('TEntry', padding=5)
+    def setup_login_screen(self):
+        # Create main container
+        container = ctk.CTkFrame(self.window, fg_color="#2d2d2d")
+        container.pack(pady=20, padx=20, fill="both", expand=True)
         
-        login_frame = ttk.LabelFrame(self.root, text="LinkedIn Login", padding=10)
-        login_frame.pack(fill="x", padx=20, pady=10)
+        # Title
+        title = ctk.CTkLabel(container, text="LinkedIn Auto Apply", 
+                           font=ctk.CTkFont(size=24, weight="bold"))
+        title.pack(pady=20)
         
-        ttk.Label(login_frame, text="Email:").pack(fill="x")
-        self.email = ttk.Entry(login_frame)
-        self.email.pack(fill="x")
+        # Subtitle
+        subtitle = ctk.CTkLabel(container, text="Login to LinkedIn", 
+                              font=ctk.CTkFont(size=16))
+        subtitle.pack(pady=10)
         
-        ttk.Label(login_frame, text="Password:").pack(fill="x")
-        self.password = ttk.Entry(login_frame, show="*")
-        self.password.pack(fill="x")
+        # Login frame
+        login_frame = ctk.CTkFrame(container, fg_color="#363636")
+        login_frame.pack(pady=20, padx=20, fill="x")
         
-        ttk.Button(self.root, text="Start Auto Apply", command=self.start_apply).pack(pady=20)
+        # Email entry
+        self.email = ctk.CTkEntry(login_frame, placeholder_text="Email",
+                                width=300)
+        self.email.pack(pady=10)
         
-        self.credentials = None
+        # Password entry
+        self.password = ctk.CTkEntry(login_frame, show="•", width=300,
+                                   placeholder_text="Password")
+        self.password.pack(pady=10)
         
-    def start_apply(self):
-        self.credentials = {
+        # Start button
+        start_btn = ctk.CTkButton(login_frame, text="Start Auto Apply",
+                                command=self.start_apply,
+                                fg_color="#9b59b6",
+                                hover_color="#8e44ad",
+                                width=200)
+        start_btn.pack(pady=20)
+        
+        # Status frame
+        self.status_frame = ctk.CTkFrame(container, fg_color="#363636")
+        self.status_frame.pack(pady=20, padx=20, fill="x", expand=True)
+        
+        self.status_label = ctk.CTkLabel(self.status_frame, 
+                                       text="Ready to start...",
+                                       font=ctk.CTkFont(size=14))
+        self.status_label.pack(pady=10)
+        
+        # Progress bar
+        self.progress = ctk.CTkProgressBar(self.status_frame)
+        self.progress.pack(pady=10, padx=20, fill="x")
+        self.progress.set(0)
+        
+    def update_status(self, message, progress=None):
+        self.status_label.configure(text=message)
+        if progress is not None:
+            self.progress.set(progress)
+        self.window.update()
+        
+    def show_error(self, message):
+        error_window = ctk.CTkToplevel(self.window)
+        error_window.title("Error")
+        error_window.geometry("300x150")
+        
+        label = ctk.CTkLabel(error_window, text=message,
+                           font=ctk.CTkFont(size=16))
+        label.pack(pady=20)
+        
+        btn = ctk.CTkButton(error_window, text="OK",
+                           command=error_window.destroy,
+                           fg_color="#e74c3c",
+                           hover_color="#c0392b")
+        btn.pack(pady=20)
+        
+    def show_success(self, message):
+        success_window = ctk.CTkToplevel(self.window)
+        success_window.title("Success")
+        success_window.geometry("300x150")
+        
+        label = ctk.CTkLabel(success_window, text=message,
+                           font=ctk.CTkFont(size=16))
+        label.pack(pady=20)
+        
+        btn = ctk.CTkButton(success_window, text="OK",
+                           command=success_window.destroy,
+                           fg_color="#2ecc71",
+                           hover_color="#27ae60")
+        btn.pack(pady=20)
+        
+    async def start_apply(self):
+        credentials = {
             'email': self.email.get(),
             'password': self.password.get()
         }
-        self.root.quit()
         
-    def get_credentials(self):
-        self.root.mainloop()
-        return self.credentials
+        if not credentials['email'] or not credentials['password']:
+            self.show_error("Please enter both email and password")
+            return
+            
+        try:
+            self.update_status("Setting up browser...", 0.1)
+            self.linkedin.setup_driver()
+            
+            self.update_status("Finding resume...", 0.2)
+            if not self.linkedin.find_resume():
+                self.show_error("No resume file found in Downloads folder")
+                return
+                
+            self.update_status("Parsing resume...", 0.3)
+            parser = ResumeParser(self.linkedin.resume_path)
+            job_titles = parser.extract_job_titles()
+            logging.info(f"Extracted job titles: {job_titles}")
+            
+            self.update_status("Logging in to LinkedIn...", 0.4)
+            if not self.linkedin.login(credentials['email'], credentials['password']):
+                self.show_error("LinkedIn login failed")
+                return
+                
+            applications = 0
+            total_jobs = len(job_titles) * 5  # 5 applications per title
+            current_job = 0
+            
+            for title in job_titles:
+                self.update_status(f"Searching for {title} positions...", 
+                                 0.5 + (current_job/total_jobs)*0.5)
+                
+                if not self.linkedin.search_jobs([title]):
+                    continue
+                    
+                time.sleep(3)
+                job_cards = self.linkedin.driver.find_elements(
+                    By.CSS_SELECTOR, '.jobs-search__results-list li'
+                )
+                
+                if not job_cards:
+                    continue
+                    
+                for job_card in job_cards[:5]:
+                    try:
+                        current_job += 1
+                        self.update_status(
+                            f"Applying to job {current_job}/{total_jobs}...",
+                            0.5 + (current_job/total_jobs)*0.5
+                        )
+                        
+                        if self.linkedin.apply_to_job(job_card):
+                            applications += 1
+                            time.sleep(2)
+                    except Exception as e:
+                        logging.error(f"Error applying to job: {str(e)}")
+                        continue
+            
+            self.show_success(f"Successfully applied to {applications} jobs!")
+            self.update_status("Complete!", 1.0)
+            
+        except Exception as e:
+            self.show_error(f"An error occurred: {str(e)}")
+        finally:
+            if self.linkedin.driver:
+                self.linkedin.driver.quit()
+    
+    def run(self):
+        self.window.mainloop()
 
 async def main():
-    login_window = LoginWindow()
-    credentials = login_window.get_credentials()
-    
-    if not credentials:
-        print("Login cancelled")
-        return
-        
-    linkedin = LinkedInAutoApply()
-    
-    try:
-        # Setup and find resume
-        linkedin.setup_driver()
-        if not linkedin.find_resume():
-            messagebox.showerror("Error", "No resume file found in Downloads folder")
-            return
-            
-        # Parse resume for job titles
-        parser = ResumeParser(linkedin.resume_path)
-        job_titles = parser.extract_job_titles()
-        logging.info(f"Extracted job titles: {job_titles}")
-        
-        # Login
-        if not linkedin.login(credentials['email'], credentials['password']):
-            messagebox.showerror("Error", "Login failed")
-            return
-            
-        # Search and apply
-        applications = 0
-        for title in job_titles:
-            if not linkedin.search_jobs([title]):
-                continue
-                
-            time.sleep(3)
-            job_cards = linkedin.driver.find_elements(By.CSS_SELECTOR, '.jobs-search__results-list li')
-            
-            if not job_cards:
-                continue
-                
-            for job_card in job_cards[:5]:
-                try:
-                    if linkedin.apply_to_job(job_card):
-                        applications += 1
-                        time.sleep(2)
-                except Exception as e:
-                    logging.error(f"Error applying to job: {str(e)}")
-                    continue
-        
-        messagebox.showinfo("Complete", f"Applied to {applications} jobs")
-        
-    except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {str(e)}")
-    finally:
-        if linkedin.driver:
-            linkedin.driver.quit()
+    app = ModernLinkedInGUI()
+    app.run()
 
 if __name__ == '__main__':
     asyncio.run(main())
 
-modules = ['undetected-chromedriver', 'selenium', 'PyPDF2', 'python-docx', 'tkinter']
+modules = ['customtkinter', 'undetected-chromedriver', 'selenium', 'PyPDF2', 'python-docx']

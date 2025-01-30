@@ -1,26 +1,30 @@
 import sys
 import json
 import asyncio
-import tkinter as tk
-from tkinter import ttk
+import customtkinter as ctk
 import time
 import os
 
-class Stopwatch:
-    """A simple stopwatch with GUI interface"""
+# Set theme and color scheme
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("dark-blue")
+
+class ModernStopwatch:
+    """A modern stopwatch with CustomTkinter interface"""
     def __init__(self):
         # Create and configure the main window
-        self.root = tk.Tk()
-        self.root.title("Stopwatch")
+        self.window = ctk.CTk()
+        self.window.title("Stopwatch")
         
         # Center the window on screen
         window_width = 450
-        window_height = 300
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
+        window_height = 400
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
         center_x = int(screen_width/2 - window_width/2)
         center_y = int(screen_height/2 - window_height/2)
-        self.root.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        self.window.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        self.window.configure(fg_color="#1a1a1a")
         
         # Initialize state variables
         self.time = 0
@@ -31,99 +35,114 @@ class Stopwatch:
     
     def setup_gui(self):
         """Set up all GUI elements"""
-        # Main frame to hold all elements
-        self.main_frame = ttk.Frame(self.root, padding="20")
-        self.main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Main container
+        container = ctk.CTkFrame(self.window, fg_color="#2d2d2d")
+        container.pack(pady=20, padx=20, fill="both", expand=True)
+        
+        # Time display frame
+        time_frame = ctk.CTkFrame(container, fg_color="#363636")
+        time_frame.pack(pady=20, padx=20, fill="x")
         
         # Time display label
-        self.time_label = ttk.Label(
-            self.main_frame,
+        self.time_label = ctk.CTkLabel(
+            time_frame,
             text="00:00:00.00",
-            font=('Arial', 48)
+            font=ctk.CTkFont(family="Arial", size=48, weight="bold")
         )
-        self.time_label.grid(row=0, column=0, columnspan=3, pady=20)
+        self.time_label.pack(pady=20)
         
-        # Configure button style
-        style = ttk.Style()
-        style.configure('Primary.TButton', font=('Arial', 12))
+        # Control buttons frame
+        button_frame = ctk.CTkFrame(container, fg_color="#363636")
+        button_frame.pack(pady=10, padx=20, fill="x")
         
-        # Control buttons
-        self.start_button = ttk.Button(
-            self.main_frame,
+        # Start button
+        self.start_button = ctk.CTkButton(
+            button_frame,
             text="Start",
             command=self.start_pause,
-            style='Primary.TButton',
-            width=10
+            font=ctk.CTkFont(size=14),
+            fg_color="#9b59b6",
+            hover_color="#8e44ad",
+            width=120,
+            height=40
         )
-        self.start_button.grid(row=1, column=0, padx=5)
+        self.start_button.pack(side="left", padx=10, pady=10, expand=True)
         
-        self.lap_button = ttk.Button(
-            self.main_frame,
+        # Lap button
+        self.lap_button = ctk.CTkButton(
+            button_frame,
             text="Lap",
             command=self.lap,
-            style='Primary.TButton',
-            width=10,
-            state='disabled'
+            font=ctk.CTkFont(size=14),
+            fg_color="#2ecc71",
+            hover_color="#27ae60",
+            width=120,
+            height=40,
+            state="disabled"
         )
-        self.lap_button.grid(row=1, column=1, padx=5)
+        self.lap_button.pack(side="left", padx=10, pady=10, expand=True)
         
-        self.reset_button = ttk.Button(
-            self.main_frame,
+        # Reset button
+        self.reset_button = ctk.CTkButton(
+            button_frame,
             text="Reset",
             command=self.reset,
-            style='Primary.TButton',
-            width=10,
-            state='disabled'
+            font=ctk.CTkFont(size=14),
+            fg_color="#e74c3c",
+            hover_color="#c0392b",
+            width=120,
+            height=40,
+            state="disabled"
         )
-        self.reset_button.grid(row=1, column=2, padx=5)
+        self.reset_button.pack(side="left", padx=10, pady=10, expand=True)
         
-        # Set up lap times display
-        self.setup_lap_display()
+        # Lap times frame with scrollable area
+        self.setup_lap_display(container)
 
-    def setup_lap_display(self):
+    def setup_lap_display(self, parent):
         """Set up the scrollable lap times display"""
-        self.lap_frame = ttk.Frame(self.main_frame)
-        self.lap_frame.grid(row=2, column=0, columnspan=3, pady=20)
-        
-        self.lap_canvas = tk.Canvas(self.lap_frame, height=100)
-        self.scrollbar = ttk.Scrollbar(
-            self.lap_frame, 
-            orient="vertical", 
-            command=self.lap_canvas.yview
+        # Title for lap times
+        lap_title = ctk.CTkLabel(
+            parent,
+            text="Lap Times",
+            font=ctk.CTkFont(size=16, weight="bold")
         )
-        self.scrollable_frame = ttk.Frame(self.lap_canvas)
+        lap_title.pack(pady=(20, 10))
         
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: self.lap_canvas.configure(
-                scrollregion=self.lap_canvas.bbox("all")
-            )
+        # Scrollable frame for lap times
+        self.lap_frame = ctk.CTkScrollableFrame(
+            parent,
+            fg_color="#363636",
+            height=150
         )
-        
-        self.lap_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        self.lap_canvas.configure(yscrollcommand=self.scrollbar.set)
-        
-        self.lap_canvas.pack(side="left", fill="both", expand=True)
-        self.scrollbar.pack(side="right", fill="y")
+        self.lap_frame.pack(pady=10, padx=20, fill="both", expand=True)
     
     def start_pause(self):
         """Toggle between start and pause states"""
         if not self.running:
             self.running = True
-            self.start_button.configure(text="Pause")
-            self.lap_button.configure(state='normal')
-            self.reset_button.configure(state='normal')
+            self.start_button.configure(
+                text="Pause",
+                fg_color="#f1c40f",
+                hover_color="#f39c12"
+            )
+            self.lap_button.configure(state="normal")
+            self.reset_button.configure(state="normal")
             self.update()
         else:
             self.running = False
-            self.start_button.configure(text="Start")
+            self.start_button.configure(
+                text="Start",
+                fg_color="#9b59b6",
+                hover_color="#8e44ad"
+            )
     
     def update(self):
         """Update the time display"""
         if self.running:
             self.time += 0.01
             self.update_display()
-            self.root.after(10, self.update)
+            self.window.after(10, self.update)
     
     def update_display(self):
         """Update the time display label"""
@@ -138,12 +157,14 @@ class Stopwatch:
     def lap(self):
         """Record lap time"""
         current_time = self.time_label.cget("text")
-        lap_label = ttk.Label(
-            self.scrollable_frame,
+        lap_label = ctk.CTkLabel(
+            self.lap_frame,
             text=f"Lap {len(self.laps) + 1}: {current_time}",
-            font=('Arial', 10)
+            font=ctk.CTkFont(size=14),
+            fg_color="#404040",
+            corner_radius=6
         )
-        lap_label.pack(pady=2)
+        lap_label.pack(pady=5, padx=10, fill="x")
         self.laps.append(current_time)
     
     def reset(self):
@@ -151,23 +172,27 @@ class Stopwatch:
         self.running = False
         self.time = 0
         self.time_label.configure(text="00:00:00.00")
-        self.start_button.configure(text="Start")
-        self.lap_button.configure(state='disabled')
-        self.reset_button.configure(state='disabled')
+        self.start_button.configure(
+            text="Start",
+            fg_color="#9b59b6",
+            hover_color="#8e44ad"
+        )
+        self.lap_button.configure(state="disabled")
+        self.reset_button.configure(state="disabled")
         
         # Clear lap times
         self.laps.clear()
-        for widget in self.scrollable_frame.winfo_children():
+        for widget in self.lap_frame.winfo_children():
             widget.destroy()
     
     def close(self):
         """Close the stopwatch window"""
-        self.root.quit()
-        self.root.destroy()
+        self.window.quit()
+        self.window.destroy()
 
     def run(self):
         """Start the application"""
-        self.root.mainloop()
+        self.window.mainloop()
 
 async def func(args):
     """Handle stopwatch commands - only open and close"""
@@ -176,16 +201,15 @@ async def func(args):
         
         if command == 'open':
             # Start new stopwatch window
-            stopwatch = Stopwatch()
+            stopwatch = ModernStopwatch()
             stopwatch.run()
             return json.dumps({"message": "Stopwatch opened"})
             
         elif command == 'close':
             # This will close any existing stopwatch windows
-            for widget in tk.Tk.winfo_children(tk._default_root) if tk._default_root else []:
-                widget.destroy()
-            if tk._default_root:
-                tk._default_root.quit()
+            if ctk._CTk__cls_windows:
+                for window in ctk._CTk__cls_windows:
+                    window.destroy()
             return json.dumps({"message": "Stopwatch closed"})
             
         else:
@@ -198,7 +222,7 @@ async def func(args):
 
 object = {
     "name": "stopwatch",
-    "description": "Open or close a stopwatch window. Examples: 'Open stopwatch', 'Close timer', 'Launch stopwatch'",
+    "description": "Open or close a modern stopwatch window. Examples: 'Open stopwatch', 'Close timer', 'Launch stopwatch'",
     "parameters": {
         "type": "object",
         "properties": {
@@ -212,4 +236,4 @@ object = {
     }
 }
 
-modules = ['tkinter']
+modules = ['customtkinter']

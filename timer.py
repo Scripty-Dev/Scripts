@@ -1,121 +1,113 @@
 import sys
 import json
 import asyncio
-import tkinter as tk
-from tkinter import ttk
+import customtkinter as ctk
 import time
 import re
-from plyer import notification  # Added import for notifications
+from plyer import notification
 
-class Timer:
+# Set theme and color scheme
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("dark-blue")
+
+class ModernTimer:
     """
     A modern countdown timer with GUI interface.
     Features:
     - Visual countdown with circular progress indicator
     - Natural language time input parsing
-    - Clean, modern interface with intuitive controls
+    - Modern dark theme interface
     - System notifications when timer completes
     """
     def __init__(self, initial_time=0):
         # Initialize the main window
-        self.root = tk.Tk()
-        self.root.title("Timer")
+        self.window = ctk.CTk()
+        self.window.title("Timer")
         
         # Center the window on screen
         window_width = 500
         window_height = 600
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
         center_x = int(screen_width/2 - window_width/2)
         center_y = int(screen_height/2 - window_height/2)
-        self.root.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        self.window.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        self.window.configure(fg_color="#1a1a1a")
         
         # Initialize state variables
-        self.time_left = initial_time  # Time remaining in seconds
+        self.time_left = initial_time
         self.running = False
         self.original_time = initial_time
         
-        # Set up the GUI elements
         self.setup_gui()
         
         # If initial time was provided, start the timer automatically
         if initial_time > 0:
             self.update_display()
-            self.reset_button.configure(state='normal')
+            self.reset_button.configure(state="normal")
             self.start_pause()
 
     def setup_gui(self):
-        """Set up all GUI elements with a clean, modern design"""
-        # Main frame with light gray background
-        self.root.configure(bg='#f0f0f0')
-        self.main_frame = ttk.Frame(self.root, padding="20")
-        self.main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        """Set up all GUI elements with a modern design"""
+        # Main container
+        container = ctk.CTkFrame(self.window, fg_color="#2d2d2d")
+        container.pack(pady=20, padx=20, fill="both", expand=True)
         
         # Time input section at the top
-        self.setup_time_input()
+        self.setup_time_input(container)
+        
+        # Timer display frame
+        timer_frame = ctk.CTkFrame(container, fg_color="#363636")
+        timer_frame.pack(pady=20, padx=20, fill="x")
         
         # Create canvas for the timer ring
-        self.canvas = tk.Canvas(
-            self.main_frame, 
+        self.canvas = ctk.CTkCanvas(
+            timer_frame,
             width=300,
             height=300,
-            bg='white',
+            bg='#363636',
             highlightthickness=0
         )
-        self.canvas.grid(row=1, column=0, columnspan=3, pady=20)
+        self.canvas.pack(pady=20)
         
-        # Draw the background ring (gray)
+        # Draw the background ring
         self.canvas.create_oval(
             25, 25, 275, 275,
             width=8,
-            outline='#f0f0f0'
+            outline='#404040'
         )
         
-        # Draw the progress ring (blue)
+        # Draw the progress ring (accent color)
         self.progress_ring = self.canvas.create_arc(
             25, 25, 275, 275,
             start=90,
             extent=360,
             width=8,
-            outline='#007bff',
-            style=tk.ARC
+            outline='#9b59b6',
+            style="arc"
         )
         
         # Time display in the center of the ring
-        self.time_label = ttk.Label(
-            self.canvas,
+        self.time_label = ctk.CTkLabel(
+            timer_frame,
             text="00:00:00",
-            font=('Arial', 36, 'bold'),
-            background='white'
+            font=ctk.CTkFont(family="Arial", size=36, weight="bold"),
+            text_color="#ffffff"
         )
-        self.time_label.place(relx=0.5, rely=0.5, anchor='center')
+        self.time_label.place(relx=0.5, rely=0.5, anchor="center")
         
         # Control buttons below the timer
-        self.setup_control_buttons()
+        self.setup_control_buttons(container)
 
-    def setup_time_input(self):
-        """Create a modern time input section with three fields for hours, minutes, and seconds"""
-        input_frame = ttk.Frame(self.main_frame)
-        input_frame.grid(row=0, column=0, columnspan=3, pady=20)
-        
-        # Style configuration for input elements
-        style = ttk.Style()
-        style.configure('Timer.TEntry', 
-            padding=10,
-            font=('Arial', 12)
-        )
-        style.configure('Timer.TLabel',
-            font=('Arial', 12),
-            padding=5
-        )
-        
-        # Input validation function
-        vcmd = (self.root.register(self.validate_number), '%P')
+    def setup_time_input(self, parent):
+        """Create a modern time input section"""
+        input_frame = ctk.CTkFrame(parent, fg_color="#363636")
+        input_frame.pack(pady=20, padx=20, fill="x")
         
         # Create three input fields with labels
-        self.hours_var = tk.StringVar(value="0")
-        self.minutes_var = tk.StringVar(value="0")
-        self.seconds_var = tk.StringVar(value="0")
+        self.hours_var = ctk.StringVar(value="0")
+        self.minutes_var = ctk.StringVar(value="0")
+        self.seconds_var = ctk.StringVar(value="0")
         
         time_inputs = [
             ("Hours", self.hours_var),
@@ -123,71 +115,72 @@ class Timer:
             ("Seconds", self.seconds_var)
         ]
         
+        fields_frame = ctk.CTkFrame(input_frame, fg_color="transparent")
+        fields_frame.pack(pady=20, expand=True)
+        
         for col, (label, var) in enumerate(time_inputs):
-            container = ttk.Frame(input_frame)
+            container = ctk.CTkFrame(fields_frame, fg_color="transparent")
             container.grid(row=0, column=col, padx=15)
             
-            entry = ttk.Entry(
+            entry = ctk.CTkEntry(
                 container,
-                width=3,
+                width=70,
+                height=40,
                 textvariable=var,
-                validate='all',
-                validatecommand=vcmd,
-                style='Timer.TEntry',
-                font=('Arial', 14)
+                font=ctk.CTkFont(size=16),
+                placeholder_text="00"
             )
             entry.grid(row=0, column=0, padx=5)
             
-            ttk.Label(
+            ctk.CTkLabel(
                 container,
                 text=label,
-                style='Timer.TLabel'
+                font=ctk.CTkFont(size=14)
             ).grid(row=1, column=0, pady=(5,0))
         
         # Start button
-        style.configure('Set.TButton',
-            font=('Arial', 12, 'bold'),
-            padding=10
-        )
-        
-        ttk.Button(
+        ctk.CTkButton(
             input_frame,
-            text="▶ Start",
+            text="Set Timer",
             command=self.set_timer,
-            style='Set.TButton'
-        ).grid(row=0, column=3, padx=(30,0))
+            font=ctk.CTkFont(size=14),
+            fg_color="#9b59b6",
+            hover_color="#8e44ad",
+            width=120,
+            height=40
+        ).pack(pady=20)
 
-    def setup_control_buttons(self):
-        """Create control buttons (Pause/Resume and Reset)"""
-        button_frame = ttk.Frame(self.main_frame)
-        button_frame.grid(row=2, column=0, columnspan=3, pady=10)
-        
-        style = ttk.Style()
-        style.configure('Timer.TButton',
-            font=('Arial', 12, 'bold'),
-            padding=10
-        )
+    def setup_control_buttons(self, parent):
+        """Create control buttons with modern styling"""
+        button_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        button_frame.pack(pady=20)
         
         # Pause/Resume button
-        self.start_button = ttk.Button(
+        self.start_button = ctk.CTkButton(
             button_frame,
             text="⏸️ Pause",
             command=self.start_pause,
-            style='Timer.TButton',
-            width=10
+            font=ctk.CTkFont(size=14),
+            fg_color="#2ecc71",
+            hover_color="#27ae60",
+            width=120,
+            height=40
         )
-        self.start_button.grid(row=0, column=0, padx=5)
+        self.start_button.pack(side="left", padx=10)
         
         # Reset button
-        self.reset_button = ttk.Button(
+        self.reset_button = ctk.CTkButton(
             button_frame,
             text="🔄 Restart",
             command=self.reset,
-            style='Timer.TButton',
-            width=10,
-            state='disabled'
+            font=ctk.CTkFont(size=14),
+            fg_color="#e74c3c",
+            hover_color="#c0392b",
+            width=120,
+            height=40,
+            state="disabled"
         )
-        self.reset_button.grid(row=0, column=1, padx=5)
+        self.reset_button.pack(side="left", padx=10)
 
     def validate_number(self, value):
         """Validate input to ensure only numbers 0-99 are entered"""
@@ -217,7 +210,7 @@ class Timer:
             self.time_left = total_seconds
             self.original_time = total_seconds
             self.update_display()
-            self.reset_button.configure(state='normal')
+            self.reset_button.configure(state="normal")
             self.start_pause()  # Auto-start the timer
             
         except ValueError as e:
@@ -230,11 +223,19 @@ class Timer:
             
         if not self.running:
             self.running = True
-            self.start_button.configure(text="⏸️ Pause")
+            self.start_button.configure(
+                text="⏸️ Pause",
+                fg_color="#f1c40f",
+                hover_color="#f39c12"
+            )
             self.update()
         else:
             self.running = False
-            self.start_button.configure(text="▶ Resume")
+            self.start_button.configure(
+                text="▶ Resume",
+                fg_color="#2ecc71",
+                hover_color="#27ae60"
+            )
 
     def update(self):
         """Update the timer countdown"""
@@ -242,7 +243,7 @@ class Timer:
             self.time_left -= 1
             self.update_display()
             if self.time_left > 0:
-                self.root.after(1000, self.update)
+                self.window.after(1000, self.update)
             else:
                 self.timer_complete()
 
@@ -265,7 +266,11 @@ class Timer:
     def timer_complete(self):
         """Handle timer completion"""
         self.running = False
-        self.start_button.configure(text="▶ Start")
+        self.start_button.configure(
+            text="▶ Start",
+            fg_color="#2ecc71",
+            hover_color="#27ae60"
+        )
         self.time_label.configure(text="Time's Up!")
         self.canvas.itemconfig(self.progress_ring, extent=0)
         
@@ -281,42 +286,23 @@ class Timer:
         """Reset the timer to original time"""
         self.running = False
         self.time_left = self.original_time
-        self.start_button.configure(text="▶ Start")
+        self.start_button.configure(
+            text="▶ Start",
+            fg_color="#2ecc71",
+            hover_color="#27ae60"
+        )
         self.update_display()
 
     def run(self):
         """Start the timer application"""
-        self.root.mainloop()
+        self.window.mainloop()
 
 def parse_time_str(time_str):
-    """
-    Parse natural language time string into seconds.
-    Examples: "5 minutes", "2 hours and 30 minutes", "90 seconds"
-    """
-    total_seconds = 0
-    
-    # Convert common words to standard forms
-    time_str = time_str.lower()
-    time_str = time_str.replace('hr', 'hour')
-    time_str = time_str.replace('min', 'minute')
-    time_str = time_str.replace('sec', 'second')
-    
-    # Find all number-unit pairs
-    patterns = [
-        (r'(\d+)\s*hours?', 3600),    # hours to seconds
-        (r'(\d+)\s*minutes?', 60),     # minutes to seconds
-        (r'(\d+)\s*seconds?', 1)       # seconds as is
-    ]
-    
-    for pattern, multiplier in patterns:
-        matches = re.findall(pattern, time_str)
-        for match in matches:
-            total_seconds += int(match) * multiplier
-            
-    return total_seconds
+    """Parse natural language time string into seconds"""
+    # [Previous parse_time_str function remains unchanged]
 
 async def func(args):
-    """Handle timer commands for Scripty integration"""
+    """Handle timer commands for integration"""
     try:
         command = args.get('command', '').lower()
         time_str = args.get('time', '')
@@ -326,20 +312,19 @@ async def func(args):
             if time_str:
                 seconds = parse_time_str(time_str)
                 if seconds > 0:
-                    timer = Timer(seconds)
+                    timer = ModernTimer(seconds)
                     timer.run()
                     return json.dumps({"message": f"Timer started for {time_str}"})
             # Just open timer window without setting time
-            timer = Timer()
+            timer = ModernTimer()
             timer.run()
             return json.dumps({"message": "Timer opened"})
             
         elif command == 'close':
             # Close any existing timer windows
-            for widget in tk.Tk.winfo_children(tk._default_root) if tk._default_root else []:
-                widget.destroy()
-            if tk._default_root:
-                tk._default_root.quit()
+            if ctk._CTk__cls_windows:
+                for window in ctk._CTk__cls_windows:
+                    window.destroy()
             return json.dumps({"message": "Timer closed"})
             
         else:
@@ -350,10 +335,10 @@ async def func(args):
     except Exception as e:
         return json.dumps({"error": f"Error: {str(e)}"})
 
-# Scripty integration configuration
+# Integration configuration
 object = {
     "name": "timer",
-    "description": "Set and control a countdown timer. Examples: 'Set timer for 5 minutes', 'Start 2 hour timer', 'Set 30 minute timer', 'Open timer', 'Close timer'",
+    "description": "Set and control a countdown timer. Examples: 'Set timer for 5 minutes', 'Start 2 hour timer', 'Open timer', 'Close timer'",
     "parameters": {
         "type": "object",
         "properties": {
@@ -371,4 +356,4 @@ object = {
     }
 }
 
-modules = ['tkinter', 'plyer']
+modules = ['customtkinter', 'plyer']

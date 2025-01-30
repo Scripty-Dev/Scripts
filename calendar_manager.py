@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 
 def get_user_timezone():
     try:
-        return str(pytz.tzlocal())
+        return pytz.tzlocal().zone 
     except:
-        return 'UTC'  # Fallback to UTC if tzlocal fails
+        return 'UTC' 
 
 def parse_time(time_str):
     user_tz = pytz.timezone(get_user_timezone())
@@ -42,7 +42,8 @@ def parse_time(time_str):
 
 def create_calendar_event(summary, start_time, end_time=None, description=None):
     try:
-        timezone = get_user_timezone()
+        # Get the IANA timezone string (e.g., "America/New_York") instead of the pytz string
+        user_tz = pytz.tzlocal().zone
         
         # Parse times and ensure they're timezone-aware
         start_time_dt = parse_time(start_time)
@@ -56,7 +57,7 @@ def create_calendar_event(summary, start_time, end_time=None, description=None):
             "summary": summary,
             "startTime": start_time_dt.isoformat(),
             "endTime": end_time_dt.isoformat(),
-            "timeZone": timezone
+            "timeZone": user_tz  # Use the IANA timezone string
         }
         
         if description:

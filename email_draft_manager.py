@@ -32,7 +32,7 @@ Body: {body}"""}
         "https://scripty.me/api/assistant/call",
         headers={"Authorization": f"Bearer {authtoken}"},
         json={
-            "model": "llama-3.3-70b-versatile",
+            "model": "mixtral-8x7b-32768",
             "messages": messages
         }
     ).json()
@@ -77,6 +77,8 @@ def process_unread_emails(days=1):
             params={"days": days}
         )
         emails = response.json()
+        if not isinstance(emails, list):
+            return {"success": False, "error": "Invalid response from email API"}
         
         results = []
         for email_data in emails:

@@ -182,18 +182,19 @@ async def func(args):
         elif action == "get_events":
             return json.dumps(get_calendar_events())
         elif action == "create_event":
-            required_fields = ["start_time", "end_time"]
-            missing_fields = [field for field in required_fields if field not in args]
-            if missing_fields:
+            # Only require start_time for event creation
+            if "start_time" not in args:
                 return json.dumps({
                     "success": False, 
-                    "error": f"Missing required fields: {', '.join(missing_fields)}"
+                    "error": "Missing required field: start_time"
                 })
             
+            # If end_time is not provided, it will default to start_time + 1 hour
+            # in the create_calendar_event function
             return json.dumps(create_calendar_event(
                 args.get("summary", "New Event"),
                 args["start_time"],
-                args["end_time"],
+                args.get("end_time"),  # This can be None
                 args.get("description")
             ))
         else:

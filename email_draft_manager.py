@@ -32,7 +32,7 @@ Body: {body}"""}
         "https://scripty.me/api/assistant/call",
         headers={"Authorization": f"Bearer {authtoken}"},
         json={
-            "model": "mixtral-8x7b-32768",
+            "model": "llama-3.3-70b-versatile",
             "messages": messages
         }
     ).json()

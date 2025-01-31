@@ -46,24 +46,18 @@ Subject: {subject}"""}
 def generate_draft(subject, body, from_header, to_addr):
     sender = extract_sender_info(from_header)
     
-    # Format proper email headers
-    reply_subject = subject if subject.startswith('Re:') else f'Re: {subject}'
-    reply_to = sender['email']
-    
     messages = [
-        {"role": "system", "content": f"You are an email assistant helping {to_addr} write replies."},
+        {"role": "system", "content": f"You are an email assistant helping {to_addr} write replies. Do not include Subject or email headers in your response."},
         {"role": "user", "content": f"""Write a reply from {to_addr} to {sender['name']}.
 
 Original Email:
-Subject: {subject}
 Body: {body}
 
 Guidelines:
-1. Address sender by name when appropriate
+1. Start with greeting
 2. Match original tone
 3. Address all points
-4. Be concise but thorough
-5. Don't include email headers in the response body"""}
+4. Be concise"""}
     ]
 
     response = requests.post(
@@ -75,7 +69,13 @@ Guidelines:
         }
     ).json()
 
-    return response.get('content', "Thank you for your email. I will respond shortly.")
+    draft = response.get('content', "Thank you for your email. I will respond shortly.")
+    
+    return {
+        "content": draft,
+        "reply_to": sender['email'],
+        "reply_subject": subject if subject.startswith('Re:') else f'Re: {subject}'
+    }
 
 def process_unread_emails(days=1):
     try:
@@ -103,10 +103,9 @@ def process_unread_emails(days=1):
                 if draft:
                     formatted_draft = {
                         "original_message_id": email_data["message_id"],
-                        "content": draft,
-                        "subject": email_data['subject'],
-                        "to": extract_sender_info(email_data["from"])["email"],
-                        "in_reply_to": email_data["message_id"]
+                        "content": draft["content"],
+                        "subject": draft["reply_subject"],
+                        "to": draft["reply_to"]
                     }
                     
                     requests.post(

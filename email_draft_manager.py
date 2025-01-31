@@ -69,7 +69,7 @@ Guidelines:
    return {
        "content": draft,
        "reply_to": sender['email'],
-       "reply_subject": subject if subject.startswith('Re:') else f'Re: {subject}'
+       "reply_subject": f"Re: {re.sub('^(Re: )*', '', subject)}"
    }
 
 def process_unread_emails(days=1):

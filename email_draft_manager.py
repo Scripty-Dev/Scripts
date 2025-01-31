@@ -3,36 +3,40 @@ import requests
 import re
 from datetime import datetime, timedelta
 
-def classify_email(subject, body, from_header):
+def extract_sender_info(from_header):
+    """Extract name and email from From header."""
+    name = re.match(r'^([^<]+)', from_header)
+    email = re.findall(r'<(.+?)>', from_header)
+    return {
+        'name': name.group(1).strip() if name else '',
+        'email': email[0] if email else from_header.strip()
+    }
+
+def classify_email(subject, from_header):
+    # First check automated patterns
+    sender = extract_sender_info(from_header)
     automated_patterns = [r'noreply@', r'no-reply@', r'donotreply@', r'notifications?@']
-    email_addr = re.findall(r'<(.+?)>', from_header)[0] if '<' in from_header else from_header
-    if any(re.search(pattern, email_addr.lower()) for pattern in automated_patterns):
+    if any(re.search(pattern, sender['email'].lower()) for pattern in automated_patterns):
         return False
 
     messages = [
         {"role": "system", "content": "You are an email assistant that determines if emails need replies."},
-        {"role": "user", "content": f"""Analyze this email and determine if it needs a reply. Respond with ONLY "NEEDS_REPLY" or "NO_REPLY".
+        {"role": "user", "content": f"""Determine if this email needs a reply based on sender and subject only. Reply with "NEEDS_REPLY" or "NO_REPLY".
 
 Rules:
-1. NEEDS_REPLY for:
-   - Personal emails requiring response
-   - Business communications needing action
-   - Direct questions or requests
-2. NO_REPLY for:
-   - Marketing newsletters
-   - Automated notifications
-   - FYI/broadcast messages
+- NEEDS_REPLY: Personal emails, business communications needing action, direct questions
+- NO_REPLY: Marketing, newsletters, broadcasts, automated notifications
 
-From: {from_header}
-Subject: {subject}
-Body: {body}"""}
+From Name: {sender['name']}
+From Email: {sender['email']}
+Subject: {subject}"""}
     ]
 
     response = requests.post(
         "https://scripty.me/api/assistant/call",
         headers={"Authorization": f"Bearer {authtoken}"},
         json={
-            "model": "mixtral-8x7b-32768",
+            "model": "llama-3.3-70b-versatile",
             "messages": messages
         }
     ).json()
@@ -40,29 +44,27 @@ Body: {body}"""}
     return "NEEDS_REPLY" in response.get('content', '').upper()
 
 def generate_draft(subject, body, from_header, to_addr):
+    sender = extract_sender_info(from_header)
     messages = [
         {"role": "system", "content": f"You are an email assistant helping {to_addr} write replies."},
-        {"role": "user", "content": f"""Write a reply to this email from {to_addr} to {from_header}.
+        {"role": "user", "content": f"""Write a reply from {to_addr} to {sender['name']} ({sender['email']}).
 
 Original Email:
-From: {from_header}
-To: {to_addr}
 Subject: {subject}
 Body: {body}
 
 Guidelines:
-1. Write from {to_addr}'s perspective
-2. Use sender's name when appropriate
-3. Match original tone
-4. Address all questions
-5. Be concise but thorough"""}
+1. Address sender by name when appropriate
+2. Match original tone
+3. Address all points
+4. Be concise but thorough"""}
     ]
 
     response = requests.post(
         "https://scripty.me/api/assistant/call",
         headers={"Authorization": f"Bearer {authtoken}"},
         json={
-            "model": "mixtral-8x7b-32768",
+            "model": "llama-3.3-70b-versatile",
             "messages": messages
         }
     ).json()
@@ -82,7 +84,7 @@ def process_unread_emails(days=1):
         
         results = []
         for email_data in emails:
-            if classify_email(email_data["subject"], email_data["body"], email_data["from"]):
+            if classify_email(email_data["subject"], email_data["from"]):
                 draft = generate_draft(
                     email_data["subject"],
                     email_data["body"], 

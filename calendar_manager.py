@@ -50,10 +50,11 @@ def create_calendar_event(summary, start_time, end_time=None, description=None):
         timezone = get_user_timezone()
         start_time_dt = parse_time(start_time)
         
-        if end_time:
-            end_time_dt = parse_time(end_time)
-        else:
+        # If no end time provided, default to start time + 1 hour
+        if end_time is None:
             end_time_dt = start_time_dt + timedelta(hours=1)
+        else:
+            end_time_dt = parse_time(end_time)
         
         data = {
             "summary": summary,
@@ -182,19 +183,17 @@ async def func(args):
         elif action == "get_events":
             return json.dumps(get_calendar_events())
         elif action == "create_event":
-            # Only require start_time for event creation
+            # Only validate start_time
             if "start_time" not in args:
                 return json.dumps({
                     "success": False, 
                     "error": "Missing required field: start_time"
                 })
             
-            # If end_time is not provided, it will default to start_time + 1 hour
-            # in the create_calendar_event function
             return json.dumps(create_calendar_event(
                 args.get("summary", "New Event"),
                 args["start_time"],
-                args.get("end_time"),  # This can be None
+                args.get("end_time"),
                 args.get("description")
             ))
         else:

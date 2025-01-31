@@ -36,7 +36,7 @@ Subject: {subject}"""}
         "https://scripty.me/api/assistant/call",
         headers={"Authorization": f"Bearer {authtoken}"},
         json={
-            "model": "llama-3.3-70b-versatile",
+            "model": "mixtral-8x7b-32768",
             "messages": messages
         }
     ).json()
@@ -45,9 +45,14 @@ Subject: {subject}"""}
 
 def generate_draft(subject, body, from_header, to_addr):
     sender = extract_sender_info(from_header)
+    
+    # Format proper email headers
+    reply_subject = subject if subject.startswith('Re:') else f'Re: {subject}'
+    reply_to = sender['email']
+    
     messages = [
         {"role": "system", "content": f"You are an email assistant helping {to_addr} write replies."},
-        {"role": "user", "content": f"""Write a reply from {to_addr} to {sender['name']} ({sender['email']}).
+        {"role": "user", "content": f"""Write a reply from {to_addr} to {sender['name']}.
 
 Original Email:
 Subject: {subject}
@@ -57,14 +62,15 @@ Guidelines:
 1. Address sender by name when appropriate
 2. Match original tone
 3. Address all points
-4. Be concise but thorough"""}
+4. Be concise but thorough
+5. Don't include email headers in the response body"""}
     ]
 
     response = requests.post(
         "https://scripty.me/api/assistant/call",
         headers={"Authorization": f"Bearer {authtoken}"},
         json={
-            "model": "llama-3.3-70b-versatile",
+            "model": "mixtral-8x7b-32768",
             "messages": messages
         }
     ).json()
@@ -73,12 +79,14 @@ Guidelines:
 
 def process_unread_emails(days=1):
     try:
+        print(f"Checking emails from past {days} days")
         response = requests.get(
             "https://scripty.me/api/assistant/email/unread",
             headers={"Authorization": f"Bearer {authtoken}"},
             params={"days": days}
         )
         emails = response.json()
+        print(f"Found {len(emails) if isinstance(emails, list) else 'invalid'} emails")
         if not isinstance(emails, list):
             return {"success": False, "error": "Invalid response from email API"}
         
@@ -93,13 +101,18 @@ def process_unread_emails(days=1):
                 )
                 
                 if draft:
+                    # Format proper email draft
+                    formatted_draft = {
+                        "original_message_id": email_data["message_id"],
+                        "content": draft,
+                        "subject": f"Re: {email_data['subject']}" if not email_data['subject'].startswith('Re:') else email_data['subject'],
+                        "to": extract_sender_info(email_data["from"])["email"]
+                    }
+                    
                     requests.post(
                         "https://scripty.me/api/assistant/email/draft",
                         headers={"Authorization": f"Bearer {authtoken}"},
-                        json={
-                            "original_message_id": email_data["message_id"],
-                            "content": draft
-                        }
+                        json=formatted_draft
                     )
                     results.append({
                         "subject": email_data["subject"],

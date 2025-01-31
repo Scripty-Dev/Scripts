@@ -101,12 +101,12 @@ def process_unread_emails(days=1):
                 )
                 
                 if draft:
-                    # Format proper email draft
                     formatted_draft = {
                         "original_message_id": email_data["message_id"],
                         "content": draft,
-                        "subject": f"Re: {email_data['subject']}" if not email_data['subject'].startswith('Re:') else email_data['subject'],
-                        "to": extract_sender_info(email_data["from"])["email"]
+                        "subject": email_data['subject'],
+                        "to": extract_sender_info(email_data["from"])["email"],
+                        "in_reply_to": email_data["message_id"]
                     }
                     
                     requests.post(

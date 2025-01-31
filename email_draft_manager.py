@@ -1,12 +1,9 @@
 import json
 import requests
-import email
-from email.mime.text import MIMEText
 import re
 from datetime import datetime, timedelta
 
-def classify_email(subject, body, from_header, auth_token):
-    # Check for automated senders
+def classify_email(subject, body, from_header):
     automated_patterns = [r'noreply@', r'no-reply@', r'donotreply@', r'notifications?@']
     email_addr = re.findall(r'<(.+?)>', from_header)[0] if '<' in from_header else from_header
     if any(re.search(pattern, email_addr.lower()) for pattern in automated_patterns):
@@ -33,7 +30,7 @@ Body: {body}"""}
 
     response = requests.post(
         "https://scripty.me/api/assistant/call",
-        headers={"Authorization": f"Bearer {auth_token}"},
+        headers={"Authorization": f"Bearer {authtoken}"},
         json={
             "model": "mixtral-8x7b-32768",
             "messages": messages
@@ -42,7 +39,7 @@ Body: {body}"""}
 
     return "NEEDS_REPLY" in response.get('content', '').upper()
 
-def generate_draft(subject, body, from_header, to_addr, auth_token):
+def generate_draft(subject, body, from_header, to_addr):
     messages = [
         {"role": "system", "content": f"You are an email assistant helping {to_addr} write replies."},
         {"role": "user", "content": f"""Write a reply to this email from {to_addr} to {from_header}.
@@ -63,7 +60,7 @@ Guidelines:
 
     response = requests.post(
         "https://scripty.me/api/assistant/call",
-        headers={"Authorization": f"Bearer {auth_token}"},
+        headers={"Authorization": f"Bearer {authtoken}"},
         json={
             "model": "mixtral-8x7b-32768",
             "messages": messages
@@ -72,30 +69,29 @@ Guidelines:
 
     return response.get('content', "Thank you for your email. I will respond shortly.")
 
-def process_unread_emails(days_ago=1, auth_token=None):
+def process_unread_emails(days=1):
     try:
         response = requests.get(
             "https://scripty.me/api/assistant/email/unread",
-            headers={"Authorization": f"Bearer {auth_token}"},
-            params={"days": days_ago}
+            headers={"Authorization": f"Bearer {authtoken}"},
+            params={"days": days}
         )
         emails = response.json()
         
         results = []
         for email_data in emails:
-            if classify_email(email_data["subject"], email_data["body"], email_data["from"], auth_token):
+            if classify_email(email_data["subject"], email_data["body"], email_data["from"]):
                 draft = generate_draft(
                     email_data["subject"],
                     email_data["body"], 
                     email_data["from"],
-                    email_data["to"],
-                    auth_token
+                    email_data["to"]
                 )
                 
                 if draft:
                     requests.post(
                         "https://scripty.me/api/assistant/email/draft",
-                        headers={"Authorization": f"Bearer {auth_token}"},
+                        headers={"Authorization": f"Bearer {authtoken}"},
                         json={
                             "original_message_id": email_data["message_id"],
                             "content": draft
@@ -112,11 +108,8 @@ def process_unread_emails(days_ago=1, auth_token=None):
 
 async def func(args):
     try:
-        if "auth_token" not in args:
-            return json.dumps({"success": False, "error": "auth_token required"})
-            
         days = int(args.get("days", 1))
-        return json.dumps(process_unread_emails(days, args["auth_token"]))
+        return json.dumps(process_unread_emails(days))
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
 
@@ -130,13 +123,8 @@ object = {
                 "type": "number",
                 "description": "Number of days back to process emails",
                 "default": 1
-            },
-            "auth_token": {
-                "type": "string",
-                "description": "Authentication token"
             }
-        },
-        "required": ["auth_token"]
+        }
     }
 }
 

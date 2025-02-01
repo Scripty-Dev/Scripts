@@ -7,6 +7,7 @@ import platform
 from tzlocal import get_localzone
 
 def get_user_timezone():
+    """Get the user's local timezone"""
     try:
         local_tz = get_localzone()
         if hasattr(local_tz, 'key'):
@@ -19,9 +20,22 @@ def get_user_timezone():
         return 'UTC'
 
 def parse_time(time_str):
+    """
+    Parse time string using multiple methods, with better handling for date-only expressions
+    """
     local_tz = ZoneInfo(get_user_timezone())
+    now = datetime.now(local_tz)
+
+    # Special handling for date-only expressions
+    if time_str.lower() in ['today', 'tomorrow', 'yesterday']:
+        base_date = now
+        if time_str.lower() == 'tomorrow':
+            base_date += timedelta(days=1)
+        elif time_str.lower() == 'yesterday':
+            base_date -= timedelta(days=1)
+        return base_date.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    # First try dateparser for natural language parsing
+    # Try dateparser first
     parsed_date = dateparser.parse(
         time_str,
         settings={
@@ -33,35 +47,33 @@ def parse_time(time_str):
     
     if parsed_date:
         return parsed_date
-        
-    # If dateparser fails, try original parsing methods
-    now = datetime.now(local_tz)
-    
-    if time_str.lower().startswith("tomorrow"):
-        time_part = time_str.split(" ", 1)[1]
-        try:
-            time_obj = datetime.strptime(time_part, "%H:%M")
-        except ValueError:
-            time_obj = datetime.strptime(time_part, "%I:%M %p")
-        
-        tomorrow = now + timedelta(days=1)
-        naive_time = datetime.combine(tomorrow.date(), time_obj.time())
-        return naive_time.replace(tzinfo=local_tz)
-    
+
+    # Handle specific time formats
     try:
+        # Try parsing as ISO format
         parsed_time = datetime.fromisoformat(time_str)
         if parsed_time.tzinfo is None:
             return parsed_time.replace(tzinfo=local_tz)
         return parsed_time
     except ValueError:
         try:
+            # Try parsing as 24-hour time
             time_obj = datetime.strptime(time_str, "%H:%M")
+            naive_time = datetime.combine(now.date(), time_obj.time())
+            return naive_time.replace(tzinfo=local_tz)
         except ValueError:
-            time_obj = datetime.strptime(time_str, "%I:%M %p")
-        naive_time = datetime.combine(now.date(), time_obj.time())
-        return naive_time.replace(tzinfo=local_tz)
+            try:
+                # Try parsing as 12-hour time
+                time_obj = datetime.strptime(time_str, "%I:%M %p")
+                naive_time = datetime.combine(now.date(), time_obj.time())
+                return naive_time.replace(tzinfo=local_tz)
+            except ValueError:
+                raise ValueError(f"Could not parse time string: {time_str}")
 
 def create_calendar_event(summary, start_time, end_time=None, description=None):
+    """
+    Create a new calendar event
+    """
     try:
         timezone = get_user_timezone()
         start_time_dt = parse_time(start_time)
@@ -97,6 +109,9 @@ def create_calendar_event(summary, start_time, end_time=None, description=None):
         return {"success": False, "error": str(e)}
 
 def get_calendar_events():
+    """
+    Get all calendar events
+    """
     try:
         headers = {
             "Authorization": f"Bearer {authtoken}"
@@ -111,6 +126,12 @@ def get_calendar_events():
         return {"success": False, "error": str(e)}
 
 def get_free_slots(start_date=None, end_date=None, min_duration=30):
+    """
+    Get free time slots in calendar.
+    start_date: can be 'today', 'tomorrow', or other natural language date expressions
+    end_date: same as start_date
+    min_duration: minimum duration of free slot in minutes
+    """
     try:
         timezone = get_user_timezone()
         local_tz = ZoneInfo(timezone)
@@ -119,15 +140,22 @@ def get_free_slots(start_date=None, end_date=None, min_duration=30):
         if not start_date:
             start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
         else:
-            start_date = parse_time(start_date)
+            try:
+                start_date = parse_time(start_date)
+            except ValueError as e:
+                return {"success": False, "error": str(e)}
         
         if not end_date:
+            # Default to end of current week
             days_until_sunday = (6 - now.weekday()) % 7
             end_date = (now + timedelta(days=days_until_sunday)).replace(
                 hour=23, minute=59, second=59, microsecond=0
             )
         else:
-            end_date = parse_time(end_date)
+            try:
+                end_date = parse_time(end_date)
+            except ValueError as e:
+                return {"success": False, "error": str(e)}
         
         headers = {
             "Authorization": f"Bearer {authtoken}"
@@ -185,6 +213,9 @@ def get_free_slots(start_date=None, end_date=None, min_duration=30):
         return {"success": False, "error": str(e)}
 
 async def func(args):
+    """
+    Main function to handle different calendar actions
+    """
     try:
         action = args.get("action")
         if not action:

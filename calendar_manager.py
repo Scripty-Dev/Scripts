@@ -1,5 +1,6 @@
 import json
 import requests
+import dateparser
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import platform
@@ -19,6 +20,21 @@ def get_user_timezone():
 
 def parse_time(time_str):
     local_tz = ZoneInfo(get_user_timezone())
+    
+    # First try dateparser for natural language parsing
+    parsed_date = dateparser.parse(
+        time_str,
+        settings={
+            'TIMEZONE': str(local_tz),
+            'RETURN_AS_TIMEZONE_AWARE': True,
+            'PREFER_DATES_FROM': 'future'
+        }
+    )
+    
+    if parsed_date:
+        return parsed_date
+        
+    # If dateparser fails, try original parsing methods
     now = datetime.now(local_tz)
     
     if time_str.lower().startswith("tomorrow"):
@@ -226,7 +242,7 @@ object = {
             },
             "start_time": {
                 "type": "string",
-                "description": "Event start time (required for create_event). Accepts multiple formats:\n- ISO format: '2024-01-30T15:00:00'\n- Natural language: 'tomorrow 3:00 PM'\n- 24-hour time: '15:00'\n- 12-hour time: '3:00 PM'"
+                "description": "Event start time (required for create_event). Accepts multiple formats:\n- ISO format: '2024-01-30T15:00:00'\n- Natural language: 'tomorrow 3:00 PM', 'next monday at 2pm'\n- 24-hour time: '15:00'\n- 12-hour time: '3:00 PM'"
             },
             "end_time": {
                 "type": "string",
@@ -234,7 +250,7 @@ object = {
             },
             "start_date": {
                 "type": "string",
-                "description": "Start date for finding free slots (optional for get_free_slots). Accepts ISO format ('2024-01-30') or natural language ('tomorrow'). Defaults to today"
+                "description": "Start date for finding free slots (optional for get_free_slots). Accepts ISO format ('2024-01-30') or natural language ('today', 'tomorrow', 'next week'). Defaults to today"
             },
             "end_date": {
                 "type": "string",
@@ -249,4 +265,4 @@ object = {
     }
 }
 
-modules = ['requests', 'tzlocal']
+modules = ['requests', 'tzlocal', 'dateparser']

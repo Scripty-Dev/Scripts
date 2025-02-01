@@ -368,6 +368,213 @@ Express.js + TypeScript API initialized by Scripty
         
     return True
 
+def setup_mern(path, folder_name):
+    full_path = os.path.join(path, folder_name)
+    
+    # Create main project directories
+    backend_path = os.path.join(full_path, 'backend')
+    frontend_path = os.path.join(full_path, 'frontend')
+    
+    os.makedirs(full_path)
+    os.makedirs(backend_path)
+    os.makedirs(frontend_path)
+    
+    # Setup Backend
+    print("\nSetting up MERN Backend...")
+    
+    # Initialize backend package.json with corrected scripts
+    backend_package = {
+        "name": f"{folder_name}-backend",
+        "version": "1.0.0",
+        "description": "MERN Stack Backend initialized by Scripty",
+        "main": "src/index.ts",
+        "scripts": {
+            "dev": "nodemon src/index.ts",
+            "build": "tsc",
+            "start": "node dist/index.js"
+        }
+    }
+    
+    with open(os.path.join(backend_path, 'package.json'), 'w') as f:
+        json.dump(backend_package, f, indent=2)
+    
+    # Install backend dependencies
+    backend_commands = [
+        "npm install express cors dotenv mongoose jsonwebtoken bcryptjs",
+        "npm install -D typescript @types/node @types/express @types/cors @types/mongoose @types/jsonwebtoken @types/bcryptjs ts-node nodemon",
+        "npx tsc --init"
+    ]
+    
+    for cmd in backend_commands:
+        print(f"\nExecuting: {cmd}")
+        if not run_command(cmd, cwd=backend_path):
+            return False
+
+    # Create backend directory structure
+    backend_src = os.path.join(backend_path, 'src')
+    os.makedirs(os.path.join(backend_src, 'routes'), exist_ok=True)
+    os.makedirs(os.path.join(backend_src, 'models'), exist_ok=True)
+    os.makedirs(os.path.join(backend_src, 'middleware'), exist_ok=True)
+    
+    # Create nodemon.json
+    nodemon_config = {
+        "watch": ["src"],
+        "ext": ".ts,.js",
+        "ignore": [],
+        "exec": "ts-node ./src/index.ts"
+    }
+    
+    with open(os.path.join(backend_path, 'nodemon.json'), 'w') as f:
+        json.dump(nodemon_config, f, indent=2)
+    
+    # Create main server file (index.ts)
+    server_content = """import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+const app = express();
+const port = process.env.PORT || 5000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Basic route for testing
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Backend is working! Initialize by Scripty' });
+});
+
+app.listen(port, () => {
+  console.log(`[server]: Server is running at http://localhost:${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+});"""
+
+    with open(os.path.join(backend_src, 'index.ts'), 'w') as f:
+        f.write(server_content)
+    
+    # Create backend .env
+    env_content = """PORT=5000
+MONGODB_URI=mongodb://localhost:27017/mern_db
+JWT_SECRET=your_jwt_secret
+NODE_ENV=development"""
+    
+    with open(os.path.join(backend_path, '.env'), 'w') as f:
+        f.write(env_content)
+
+    # Create tsconfig.json with correct settings
+    tsconfig = {
+        "compilerOptions": {
+            "target": "es2017",
+            "module": "commonjs",
+            "outDir": "./dist",
+            "rootDir": "./src",
+            "strict": True,
+            "esModuleInterop": True,
+            "skipLibCheck": True,
+            "forceConsistentCasingInFileNames": True
+        },
+        "include": ["src/**/*"],
+        "exclude": ["node_modules"]
+    }
+    
+    with open(os.path.join(backend_path, 'tsconfig.json'), 'w') as f:
+        json.dump(tsconfig, f, indent=2)
+    
+    # [Rest of the frontend setup remains the same]
+    # Setup Frontend
+    print("\nSetting up MERN Frontend...")
+    
+    frontend_commands = [
+        f"npm create vite@latest . -- --template react-ts --force",
+        "npm install",
+        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
+        "npm install axios @tanstack/react-query react-router-dom"
+    ]
+    
+    for cmd in frontend_commands:
+        print(f"\nExecuting: {cmd}")
+        if not run_command(cmd, cwd=frontend_path):
+            return False
+    
+    # Use the same helper functions as setup_vite
+    create_tailwind_config(frontend_path)
+    create_postcss_config(frontend_path)
+    modify_css(frontend_path)
+    
+    # Create frontend .env
+    frontend_env = """VITE_API_URL=http://localhost:5000/api"""
+    
+    with open(os.path.join(frontend_path, '.env'), 'w') as f:
+        f.write(frontend_env)
+    
+    # Update App.tsx with MERN-specific content
+    app_content = """import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+
+const queryClient = new QueryClient()
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <div className="min-h-screen bg-gray-50">
+          <header className="bg-white shadow">
+            <div className="max-w-7xl mx-auto py-6 px-4">
+              <h1 className="text-3xl font-bold text-gray-900">
+                MERN Stack App <span className="text-purple-600">by Scripty</span>
+              </h1>
+            </div>
+          </header>
+          <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <div className="px-4 py-6 sm:px-0">
+              <Routes>
+                <Route path="/" element={<div>Welcome to your MERN Stack app!</div>} />
+              </Routes>
+            </div>
+          </main>
+        </div>
+      </Router>
+    </QueryClientProvider>
+  )
+}
+
+export default App"""
+    
+    with open(os.path.join(frontend_path, 'src', 'App.tsx'), 'w') as f:
+        f.write(app_content)
+    
+    # Create README without code blocks
+    readme_content = f"""# {folder_name}
+
+MERN (MongoDB, Express, React, Node.js) Stack project initialized by Scripty
+
+## Project Structure
+{folder_name}/
+- backend/         # Express + TypeScript backend
+- frontend/        # React + TypeScript frontend
+
+## Getting Started
+
+1. Start MongoDB locally or update MONGODB_URI in backend/.env
+
+2. Start the backend:
+   cd backend
+   npm install
+   npm run dev
+
+3. Start the frontend:
+   cd frontend
+   npm install
+   npm run dev"""
+    
+    with open(os.path.join(full_path, 'README.md'), 'w') as f:
+        f.write(readme_content)
+        
+    return True
+
 def setup_vite(path, folder_name):
     full_path = os.path.join(path, folder_name)
     
@@ -393,7 +600,8 @@ def setup_environment(path, folder_name, template):
     setup_functions = {
         "vite-react-ts": setup_vite,
         "next-ts": setup_nextjs,
-        "express-ts": setup_express_ts
+        "express-ts": setup_express_ts,
+        "mern": setup_mern
     }
     
     if template not in setup_functions:

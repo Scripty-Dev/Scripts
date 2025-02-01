@@ -1,6 +1,5 @@
 import json
 import requests
-import dateparser
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import platform
@@ -21,54 +20,63 @@ def get_user_timezone():
 
 def parse_time(time_str):
     """
-    Parse time string using multiple methods, with better handling for date-only expressions
+    Parse time string using built-in Python datetime parsing with added natural language support
     """
     local_tz = ZoneInfo(get_user_timezone())
     now = datetime.now(local_tz)
 
-    # Special handling for date-only expressions
-    if time_str.lower() in ['today', 'tomorrow', 'yesterday']:
-        base_date = now
-        if time_str.lower() == 'tomorrow':
-            base_date += timedelta(days=1)
-        elif time_str.lower() == 'yesterday':
-            base_date -= timedelta(days=1)
-        return base_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Handle common natural language expressions
+    time_str = time_str.lower().strip()
     
-    # Try dateparser first
-    parsed_date = dateparser.parse(
-        time_str,
-        settings={
-            'TIMEZONE': str(local_tz),
-            'RETURN_AS_TIMEZONE_AWARE': True,
-            'PREFER_DATES_FROM': 'future'
-        }
-    )
+    # Handle date-only expressions
+    if time_str == 'today':
+        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif time_str == 'tomorrow':
+        tomorrow = now + timedelta(days=1)
+        return tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif time_str == 'yesterday':
+        yesterday = now - timedelta(days=1)
+        return yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif time_str == 'next week':
+        next_week = now + timedelta(weeks=1)
+        return next_week.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    if parsed_date:
-        return parsed_date
+    # Handle "tomorrow at X" or "tomorrow X" formats
+    if time_str.startswith('tomorrow'):
+        base_date = now + timedelta(days=1)
+        time_part = time_str.replace('tomorrow', '').replace('at', '').strip()
+        try:
+            time_obj = datetime.strptime(time_part, "%H:%M")
+        except ValueError:
+            try:
+                time_obj = datetime.strptime(time_part, "%I:%M %p")
+            except ValueError:
+                raise ValueError(f"Could not parse time part in: {time_str}")
+        return datetime.combine(base_date.date(), time_obj.time()).replace(tzinfo=local_tz)
 
-    # Handle specific time formats
+    # Try parsing as ISO format
     try:
-        # Try parsing as ISO format
         parsed_time = datetime.fromisoformat(time_str)
         if parsed_time.tzinfo is None:
             return parsed_time.replace(tzinfo=local_tz)
         return parsed_time
     except ValueError:
+        pass
+
+    # Try parsing as time
+    try:
+        # Try 24-hour format
+        time_obj = datetime.strptime(time_str, "%H:%M")
+        naive_time = datetime.combine(now.date(), time_obj.time())
+        return naive_time.replace(tzinfo=local_tz)
+    except ValueError:
         try:
-            # Try parsing as 24-hour time
-            time_obj = datetime.strptime(time_str, "%H:%M")
+            # Try 12-hour format
+            time_obj = datetime.strptime(time_str, "%I:%M %p")
             naive_time = datetime.combine(now.date(), time_obj.time())
             return naive_time.replace(tzinfo=local_tz)
         except ValueError:
-            try:
-                # Try parsing as 12-hour time
-                time_obj = datetime.strptime(time_str, "%I:%M %p")
-                naive_time = datetime.combine(now.date(), time_obj.time())
-                return naive_time.replace(tzinfo=local_tz)
-            except ValueError:
-                raise ValueError(f"Could not parse time string: {time_str}")
+            raise ValueError(f"Could not parse time string: {time_str}")
 
 def create_calendar_event(summary, start_time, end_time=None, description=None):
     """
@@ -128,7 +136,7 @@ def get_calendar_events():
 def get_free_slots(start_date=None, end_date=None, min_duration=30):
     """
     Get free time slots in calendar.
-    start_date: can be 'today', 'tomorrow', or other natural language date expressions
+    start_date: can be 'today', 'tomorrow', or other supported date expressions
     end_date: same as start_date
     min_duration: minimum duration of free slot in minutes
     """
@@ -273,7 +281,7 @@ object = {
             },
             "start_time": {
                 "type": "string",
-                "description": "Event start time (required for create_event). Accepts multiple formats:\n- ISO format: '2024-01-30T15:00:00'\n- Natural language: 'tomorrow 3:00 PM', 'next monday at 2pm'\n- 24-hour time: '15:00'\n- 12-hour time: '3:00 PM'"
+                "description": "Event start time (required for create_event). Accepts multiple formats:\n- ISO format: '2024-01-30T15:00:00'\n- Natural language: 'tomorrow 3:00 PM'\n- 24-hour time: '15:00'\n- 12-hour time: '3:00 PM'"
             },
             "end_time": {
                 "type": "string",
@@ -281,7 +289,7 @@ object = {
             },
             "start_date": {
                 "type": "string",
-                "description": "Start date for finding free slots (optional for get_free_slots). Accepts ISO format ('2024-01-30') or natural language ('today', 'tomorrow', 'next week'). Defaults to today"
+                "description": "Start date for finding free slots (optional for get_free_slots). Accepts ISO format ('2024-01-30') or basic expressions ('today', 'tomorrow', 'next week'). Defaults to today"
             },
             "end_date": {
                 "type": "string",
@@ -296,4 +304,4 @@ object = {
     }
 }
 
-modules = ['requests', 'tzlocal', 'dateparser']
+modules = ['requests', 'tzlocal']

@@ -1267,6 +1267,112 @@ app.mount('#app')"""
 
     return True
 
+def setup_sveltekit(path, folder_name):
+    full_path = os.path.join(path, folder_name)
+    
+    print(f"Creating SvelteKit + TypeScript project in: {full_path}")
+    
+    commands = [
+        f"npm create vite@latest {folder_name} -- --template svelte-ts --force",
+        "npm install",
+        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
+        "npx tailwindcss init -p"
+    ]
+    
+    for cmd in commands:
+        print(f"\nExecuting: {cmd}")
+        if not run_command(cmd, cwd=path if cmd == commands[0] else full_path):
+            return False
+
+    # Create Tailwind config
+    tailwind_config = """/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./src/**/*.{html,js,svelte,ts}'],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}"""
+
+    with open(os.path.join(full_path, 'tailwind.config.js'), 'w') as f:
+        f.write(tailwind_config)
+
+    # Update style.css with Tailwind
+    css_content = """@tailwind base;
+@tailwind components;
+@tailwind utilities;"""
+
+    with open(os.path.join(full_path, 'src', 'style.css'), 'w') as f:
+        f.write(css_content)
+
+    # Update App.svelte
+    app_content = """<script lang="ts">
+  import './style.css'
+  import svelteLogo from './assets/svelte.svg'
+  import viteLogo from '/vite.svg'
+  import Counter from './lib/Counter.svelte'
+</script>
+
+<main class="min-h-screen flex flex-col items-center justify-center p-8 text-center">
+  <div class="flex justify-center gap-8 mb-8">
+    <a 
+      href="https://vite.dev" 
+      target="_blank" 
+      rel="noreferrer"
+      class="transition-transform hover:scale-110"
+    >
+      <img 
+        src={viteLogo} 
+        class="h-24 w-24 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#646cffaa]" 
+        alt="Vite Logo" 
+      />
+    </a>
+    <a 
+      href="https://svelte.dev" 
+      target="_blank" 
+      rel="noreferrer"
+      class="transition-transform hover:scale-110"
+    >
+      <img 
+        src={svelteLogo} 
+        class="h-24 w-24 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#ff3e00aa]" 
+        alt="Svelte Logo" 
+      />
+    </a>
+  </div>
+
+  <h1 class="text-4xl font-bold mb-8">
+    Vite + Svelte initialized by 
+      <span class="text-purple-500">Scripty</span>
+  </h1>
+
+  <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+    <Counter />
+  </div>
+
+  <p class="mb-4">
+    Check out 
+    <a 
+      href="https://github.com/sveltejs/kit#readme" 
+      target="_blank" 
+      rel="noreferrer"
+      class="text-blue-600 hover:text-blue-800 underline"
+    >
+      SvelteKit
+    </a>
+    , the official Svelte app framework powered by Vite!
+  </p>
+
+  <p class="text-gray-500">
+    Click on the Vite and Svelte logos to learn more
+  </p>
+</main>"""
+
+    with open(os.path.join(full_path, 'src', 'App.svelte'), 'w') as f:
+        f.write(app_content)
+
+    return True
+
 def setup_vite(path, folder_name):
     full_path = os.path.join(path, folder_name)
     
@@ -1297,6 +1403,7 @@ def setup_environment(path, folder_name, template):
         "flask-ts": setup_flask_ts,
         "fastapi-react": setup_fastapi_react,
         "vue": setup_vue,
+        "sveltekit-ts": setup_sveltekit,
 
     }
     
@@ -1317,7 +1424,7 @@ if __name__ == "__main__":
         print("  - flask-ts")
         print("  - fastapi-react")
         print("  - vue")
-
+        print("  - slsveltekit-ts")
         sys.exit(1)
     
     path = sys.argv[1]

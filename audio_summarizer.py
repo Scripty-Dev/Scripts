@@ -138,7 +138,62 @@ class AudioRecorder:
             return {"error": "Already recording"}
             
         Path(os.path.expanduser('~/.recording')).touch()
-        subprocess.Popen([sys.executable, __file__, "--background"],
+        
+        # Create background script
+        background_script = Path("audio_recorder_background.py")
+        with open(background_script, 'w') as f:
+            f.write('''
+import sys
+import json
+import sounddevice as sd
+import soundfile as sf
+import numpy as np
+import time
+from datetime import datetime
+from pathlib import Path
+import os
+import requests
+
+''')
+            # Write the transcribe_file function
+            f.write('''
+def transcribe_file(filepath):
+    try:
+        with open(filepath, "rb") as f:
+            files = {"file": f}
+            response = requests.post(
+                f"https://scripty.me/api/assistant/transcribe?token={authtoken}",
+                files=files
+            )
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+''')
+            
+            # Write the AudioRecorder class
+            f.write('''
+class AudioRecorder:
+''')
+            # Write all the methods
+            with open(__file__, 'r') as source:
+                in_class = False
+                for line in source:
+                    if line.startswith('class AudioRecorder:'):
+                        in_class = True
+                    if in_class:
+                        if line.startswith('async def func'):
+                            break
+                        f.write(line)
+            
+            # Write the execution code
+            f.write('''
+if __name__ == '__main__':
+    recorder = AudioRecorder()
+    recorder.background_record()
+''')
+        
+        subprocess.Popen([sys.executable, str(background_script), "--background"],
                         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL)

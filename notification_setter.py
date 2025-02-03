@@ -86,7 +86,7 @@ class NotificationManager:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute(
                     "INSERT INTO notifications (message, scheduled_time, task_name) VALUES (?, ?, ?)",
-                    (message, target_time, task_name)
+                    (message, target_time.isoformat(), task_name)
                 )
 
             # Create notification script
@@ -114,7 +114,7 @@ toast.show()
                 '/tr', f'"{sys.executable}" "{script_path}"',
                 '/sc', 'once',
                 '/st', target_time.strftime('%H:%M'),
-                '/sd', target_time.strftime('%m/%d/%Y'),
+                '/sd', target_time.strftime('%d/%m/%Y'),
                 '/f'  # Force creation
             ]
             

@@ -8,8 +8,8 @@ from plyer import notification
 
 async def func(args):
     """
-    Set or cancel notifications using Task Scheduler but keeping plyer for the actual notifications.
-    Uses a single reusable script for all notifications.
+    Set or cancel notifications using Task Scheduler with plyer.
+    Runs in background without visible terminal.
     """
     try:
         operation = args.get("operation")
@@ -18,23 +18,6 @@ async def func(args):
         scripts_dir = Path.home() / "AppData" / "Local" / "NotificationScripts"
         scripts_dir.mkdir(exist_ok=True)
         notify_script = scripts_dir / "notification_runner.py"
-        
-        # Create the notification runner script if it doesn't exist
-        if not notify_script.exists():
-            with open(notify_script, 'w') as f:
-                f.write('''
-import sys
-from plyer import notification
-
-if len(sys.argv) > 1:
-    message = sys.argv[1]
-    notification.notify(
-        title='Reminder',
-        message=message,
-        app_name='PythonReminder',
-        timeout=10
-    )
-''')
         
         if operation == "cancel":
             # Use schtasks to delete all tasks matching our pattern
@@ -59,23 +42,38 @@ if len(sys.argv) > 1:
         if target_time < datetime.datetime.now():
             return json.dumps({"error": "Cannot set notification in the past"})
 
+        # Create the notification script
+        with open(notify_script, 'w') as f:
+            f.write(f'''
+import time
+from plyer import notification
+import datetime
+
+target_time = datetime.datetime({target_time.year}, {target_time.month}, {target_time.day}, {target_time.hour}, {target_time.minute})
+delay = (target_time - datetime.datetime.now()).total_seconds()
+if delay > 0:
+    time.sleep(delay)
+
+notification.notify(
+    title='Reminder',
+    message="""{message}""",
+    app_name='PythonReminder',
+    timeout=10
+)
+''')
+
         # Create unique task name
         task_name = f"PythonNotification_{target_time.strftime('%Y%m%d%H%M%S')}"
         
-        # Create the scheduled task
-        cmd = [
-            'schtasks', '/create', '/tn', task_name,
-            '/tr', f'"{sys.executable}" "{notify_script}" "{message}"',
-            '/sc', 'once',
-            '/st', target_time.strftime('%H:%M'),
-            '/sd', target_time.strftime('%Y/%m/%d'),
-            '/f'  # Force creation
-        ]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            return json.dumps({"error": f"Failed to create task: {result.stderr}"})
+        # Start the script in background using pythonw.exe
+        pythonw_path = str(Path(sys.executable).parent / "pythonw.exe")
+        subprocess.Popen(
+            [pythonw_path, str(notify_script)],
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
 
         return json.dumps({"message": f"Notification scheduled for {target_time}"})
         
@@ -85,7 +83,7 @@ if len(sys.argv) > 1:
 # Export object for function configuration
 object = {
     "name": "notification_setter",
-    "description": "Set or cancel system notifications that persist through system restarts.",
+    "description": "Set or cancel system notifications.",
     "parameters": {
         "type": "object",
         "properties": {

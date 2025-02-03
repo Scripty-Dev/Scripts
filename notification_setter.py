@@ -1,12 +1,11 @@
 import sys
 import json
 import datetime
-import win32com.client
-from winotify import Notification
 import sqlite3
 from pathlib import Path
 import os
 import dateparser
+import subprocess
 
 class NotificationManager:
     def __init__(self):
@@ -62,21 +61,6 @@ class NotificationManager:
                     (message, target_time, task_name)
                 )
 
-            # Create Windows scheduled task
-            scheduler = win32com.client.Dispatch('Schedule.Service')
-            scheduler.Connect()
-            
-            root_folder = scheduler.GetFolder("\\")
-            task_def = scheduler.NewTask(0)
-
-            # Create trigger
-            trigger = task_def.Triggers.Create(1)  # One-time trigger
-            trigger.StartBoundary = target_time.isoformat()
-
-            # Create action
-            action = task_def.Actions.Create(0)
-            action.Type = 0  # TASK_ACTION_EXEC
-
             # Create notification script
             notification_script = f'''
 from winotify import Notification
@@ -90,26 +74,26 @@ toast.show()
 '''
             
             # Save notification script
-            script_path = Path.home() / "AppData" / "Local" / f"{task_name}.py"
+            scripts_dir = Path.home() / "AppData" / "Local" / "NotificationScripts"
+            scripts_dir.mkdir(exist_ok=True)
+            script_path = scripts_dir / f"{task_name}.py"
             with open(script_path, 'w') as f:
                 f.write(notification_script)
 
-            action.Path = sys.executable
-            action.Arguments = str(script_path)
-
-            # Set additional settings
-            task_def.Settings.Enabled = True
-            task_def.Settings.DeleteExpiredTaskAfter = "PT0S"  # Delete after execution
-
-            # Register task
-            root_folder.RegisterTaskDefinition(
-                task_name,
-                task_def,
-                6,  # TASK_CREATE_OR_UPDATE
-                None,  # No user needed for system task
-                None,  # No password
-                0  # TASK_LOGON_NONE
-            )
+            # Create scheduled task using schtasks
+            cmd = [
+                'schtasks', '/create', '/tn', task_name,
+                '/tr', f'"{sys.executable}" "{script_path}"',
+                '/sc', 'once',
+                '/st', target_time.strftime('%H:%M'),
+                '/sd', target_time.strftime('%m/%d/%Y'),
+                '/f'  # Force creation
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                raise Exception(f"Failed to create task: {result.stderr}")
 
             return {"message": f"Notification scheduled for {target_time}"}
 
@@ -119,18 +103,16 @@ toast.show()
     def cancel_notification(self) -> dict:
         """Cancel all pending notifications"""
         try:
-            scheduler = win32com.client.Dispatch('Schedule.Service')
-            scheduler.Connect()
-            root_folder = scheduler.GetFolder("\\")
-
             # Cancel all tasks
             with sqlite3.connect(self.db_path) as conn:
                 tasks = conn.execute("SELECT task_name FROM notifications").fetchall()
                 for (task_name,) in tasks:
                     try:
-                        root_folder.DeleteTask(task_name, 0)
+                        # Delete task using schtasks
+                        subprocess.run(['schtasks', '/delete', '/tn', task_name, '/f'], 
+                                    capture_output=True)
                         # Clean up notification script
-                        script_path = Path.home() / "AppData" / "Local" / f"{task_name}.py"
+                        script_path = Path.home() / "AppData" / "Local" / "NotificationScripts" / f"{task_name}.py"
                         if script_path.exists():
                             os.remove(script_path)
                     except:
@@ -191,4 +173,4 @@ object = {
 }
 
 # Required Python packages
-modules = ['pywin32', 'winotify', 'dateparser', 'win32com']
+modules = ['winotify', 'dateparser']

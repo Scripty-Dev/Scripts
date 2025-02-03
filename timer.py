@@ -5,6 +5,8 @@ import customtkinter as ctk
 import time
 import re
 from plyer import notification
+from dateutil import parser
+from datetime import datetime, timedelta
 
 # Set theme and color scheme
 ctk.set_appearance_mode("dark")
@@ -298,8 +300,75 @@ class ModernTimer:
         self.window.mainloop()
 
 def parse_time_str(time_str):
-    """Parse natural language time string into seconds"""
-    # [Previous parse_time_str function remains unchanged]
+    """
+    Parse natural language time string into seconds.
+    Handles formats like:
+    - '5 minutes'
+    - '2h 30m'
+    - '1 hour 30 minutes'
+    - '90s'
+    - '1:30:00'
+    - '2.5 hours'
+    """
+    try:
+        # Remove any leading/trailing whitespace
+        time_str = time_str.strip().lower()
+        
+        # Try parsing HH:MM:SS format first
+        if ':' in time_str:
+            parts = time_str.split(':')
+            if len(parts) == 3:
+                h, m, s = map(int, parts)
+                return h * 3600 + m * 60 + s
+            elif len(parts) == 2:
+                m, s = map(int, parts)
+                return m * 60 + s
+        
+        # Handle abbreviated formats like "2h30m", "5m30s"
+        abbreviated = re.match(r'^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$', 
+                             time_str.replace(' ', ''))
+        if abbreviated:
+            h, m, s = abbreviated.groups()
+            total = 0
+            if h: total += int(h) * 3600
+            if m: total += int(m) * 60
+            if s: total += int(s)
+            if total > 0:
+                return total
+        
+        # Handle decimal hours/minutes (e.g., "2.5 hours", "1.5 minutes")
+        decimal = re.match(r'(\d*\.?\d+)\s*(hour|minute|second)s?', time_str)
+        if decimal:
+            value = float(decimal.group(1))
+            unit = decimal.group(2)
+            if unit == 'hour':
+                return int(value * 3600)
+            elif unit == 'minute':
+                return int(value * 60)
+            elif unit == 'second':
+                return int(value)
+        
+        # Try parsing with dateutil for more natural language
+        try:
+            # Create a base time
+            base_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            # Parse the relative time
+            parsed_time = parser.parse(time_str, default=base_time, fuzzy=True)
+            # Calculate the difference
+            delta = parsed_time - base_time
+            return int(delta.total_seconds())
+        except:
+            pass
+        
+        # Handle simple numeric input (assume minutes)
+        if time_str.isdigit():
+            return int(time_str) * 60
+            
+        raise ValueError("Could not parse time string")
+        
+    except Exception as e:
+        print(f"Error parsing time: {str(e)}")
+        return 0
 
 async def func(args):
     """Handle timer commands for integration"""
@@ -356,4 +425,4 @@ object = {
     }
 }
 
-modules = ['customtkinter', 'plyer']
+modules = ['customtkinter', 'plyer', 'python-dateutil']

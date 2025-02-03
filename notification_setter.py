@@ -3,7 +3,7 @@ import json
 import datetime
 from pathlib import Path
 from plyer import notification
-from win_scheduler import WindowsScheduler
+import win32com.client
 
 async def func(args):
     """Set or cancel Windows notifications using Task Scheduler"""
@@ -12,7 +12,9 @@ async def func(args):
         
         # Get Python executable path and create scheduler
         python_path = sys.executable
-        scheduler = WindowsScheduler()
+        scheduler = win32com.client.Dispatch('Schedule.Service')
+        scheduler.Connect()
+        root_folder = scheduler.GetFolder('\\')
         
         # Fixed path in AppData for our notification script
         script_path = Path.home() / "AppData" / "Local" / "notification_display.py"
@@ -37,10 +39,10 @@ notification.notify(
 
         if operation == "cancel":
             # Get all tasks and cancel ones with our prefix
-            tasks = scheduler.get_tasks()
+            tasks = root_folder.GetTasks(0)  # 0 means get all tasks
             for task in tasks:
-                if task.startswith('PyNotify_'):
-                    scheduler.delete_task(task)
+                if task.Name.startswith('PyNotify_'):
+                    root_folder.DeleteTask(task.Name, 0)
             return json.dumps({"message": "All notifications cancelled"})
 
         message = args.get("message", "")
@@ -68,7 +70,8 @@ notification.notify(
         
         # Create the task with properly resolved paths
         command = f'"{python_path}" "{script_path}" "{message}"'
-        scheduler.create_task(
+        scheduler.GetFolder('\\').NewTask(
+            0,
             task_name,
             command,
             target_time.strftime('%H:%M'),
@@ -108,4 +111,4 @@ object = {
 }
 
 # Required Python packages
-modules = ['plyer', 'win-scheduler']
+modules = ['plyer', 'pywin32']

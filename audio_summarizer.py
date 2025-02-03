@@ -143,9 +143,6 @@ recorder = AudioRecorder()
 async def func(args):
     try:
         operation = args.get("operation")
-        token = args.get("token")  # Get token from args
-        if not token:
-            return json.dumps({"error": "Token is required"})
             
         if operation == "start":
             return json.dumps(recorder.start())
@@ -164,13 +161,9 @@ object = {
             "operation": {
                 "type": "string",
                 "description": "Operation to perform (start/stop)"
-            },
-            "token": {
-                "type": "string",
-                "description": "Scripty API token"
             }
         },
-        "required": ["operation", "token"]
+        "required": ["operation"]
     }
 }
 

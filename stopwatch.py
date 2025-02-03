@@ -203,8 +203,34 @@ async def func(args):
         
         if command == 'open':
             # Create and run a separate stopwatch process
-            current_file = Path(os.path.abspath(__file__))
-            subprocess.Popen([sys.executable, str(current_file), '--run-stopwatch'],
+            stopwatch_script = Path(os.path.dirname(os.path.abspath(__file__))) / "stopwatch_background.py"
+            with open(stopwatch_script, 'w') as f:
+                f.write('''
+import customtkinter as ctk
+
+# Set theme and color scheme
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("dark-blue")
+
+class ModernStopwatch:
+''')
+                # Write the entire ModernStopwatch class definition
+                with open(__file__, 'r') as source:
+                    in_class = False
+                    for line in source:
+                        if line.startswith('class ModernStopwatch:'):
+                            in_class = True
+                        if in_class:
+                            if line.startswith('async def func'):
+                                break
+                            f.write(line)
+                
+                f.write('''
+stopwatch = ModernStopwatch()
+stopwatch.run()
+''')
+
+            subprocess.Popen([sys.executable, str(stopwatch_script)],
                            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
                            stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL)

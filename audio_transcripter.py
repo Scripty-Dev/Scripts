@@ -7,9 +7,11 @@ def transcribe_file(filepath):
     try:
         with open(filepath, "rb") as f:
             files = {"file": f}
+            headers = {"Authorization": f"Bearer {authtoken}"}
             response = requests.post(
-                f"https://scripty.me/api/assistant/transcribe?token={authtoken}",
-                files=files
+                "https://scripty.me/api/assistant/transcribe",
+                files=files,
+                headers=headers
             )
             response.raise_for_status()
             return response.json()

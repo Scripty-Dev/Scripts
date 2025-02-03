@@ -4,8 +4,8 @@ import datetime
 import sqlite3
 from pathlib import Path
 import os
-import dateparser
 import subprocess
+import re
 
 class NotificationManager:
     def __init__(self):
@@ -26,22 +26,50 @@ class NotificationManager:
             ''')
 
     def parse_time(self, timestamp: str) -> datetime.datetime:
-        """Parse time string in natural language format"""
-        parsed_time = dateparser.parse(timestamp, settings={
-            'PREFER_DATES_FROM': 'future',
-            'RELATIVE_BASE': datetime.datetime.now()
-        })
+        """Parse time string in common formats"""
+        timestamp = timestamp.lower().strip()
+        now = datetime.datetime.now()
         
-        if not parsed_time:
-            raise ValueError(f"Could not parse time: {timestamp}")
-            
-        # If only time was provided (e.g., "5:00" or "5pm"), assume today
-        if len(timestamp) <= 5 and ":" in timestamp:
-            today = datetime.datetime.now().date()
-            time_obj = parsed_time.time()
-            parsed_time = datetime.datetime.combine(today, time_obj)
-            
-        return parsed_time
+        # Handle "today" and "tomorrow" keywords
+        if timestamp == "today":
+            return now
+        if timestamp.startswith("tomorrow"):
+            base_date = now.date() + datetime.timedelta(days=1)
+            if len(timestamp) > 8:  # has time component
+                time_part = timestamp[9:].strip()
+            else:
+                time_part = now.strftime("%H:%M")
+        else:
+            base_date = now.date()
+            time_part = timestamp
+
+        # Try to parse time in various formats
+        time_formats = [
+            ("%H:%M", r'^\d{1,2}:\d{2}$'),
+            ("%I:%M%p", r'^\d{1,2}:\d{2}[ap]m$'),
+            ("%I%p", r'^\d{1,2}[ap]m$'),
+            ("%Y-%m-%d %H:%M", r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$'),
+        ]
+
+        # Clean up the time string
+        time_part = time_part.replace(" ", "")  # remove spaces
+        if time_part[-2:].lower() in ['am', 'pm']:
+            if ':' not in time_part:
+                time_part = time_part[:-2] + ":00" + time_part[-2:]
+
+        # Try each format
+        for fmt, pattern in time_formats:
+            if re.match(pattern, time_part):
+                try:
+                    if "-%d" in fmt:  # Full date format
+                        return datetime.datetime.strptime(time_part, fmt)
+                    else:  # Time only format
+                        time_obj = datetime.datetime.strptime(time_part, fmt).time()
+                        return datetime.datetime.combine(base_date, time_obj)
+                except ValueError:
+                    continue
+
+        raise ValueError(f"Could not parse time: {timestamp}")
 
     def set_notification(self, message: str, timestamp: str) -> dict:
         """Set a new notification using Windows Task Scheduler"""
@@ -126,7 +154,7 @@ toast.show()
 async def func(args):
     """
     Set or cancel Windows system notifications using Task Scheduler.
-    Supports natural language time inputs like 'tomorrow 5pm' or 'next monday 5:30pm'.
+    Supports various time formats including 'today', 'tomorrow 5pm', '5:30pm', etc.
     Notifications persist through system restarts and are managed via SQLite database.
     """
     try:
@@ -150,7 +178,7 @@ async def func(args):
 # Export object for function configuration
 object = {
     "name": "notification_setter",
-    "description": "Set or cancel Windows system notifications that persist through system restarts. Supports natural language time inputs.",
+    "description": "Set or cancel Windows system notifications that persist through system restarts. Supports various time formats.",
     "parameters": {
         "type": "object",
         "properties": {
@@ -165,7 +193,7 @@ object = {
             },
             "time": {
                 "type": "string",
-                "description": "Time for the notification. Supports natural language like 'tomorrow 5pm', 'next monday 5:30pm', as well as formal formats like 'HH:MM' or 'YYYY-MM-DD HH:MM'"
+                "description": "Time for the notification. Supports formats like: 'today', 'tomorrow 5pm', '5:30pm', '14:30', '2024-02-05 15:30'"
             }
         },
         "required": ["operation"]
@@ -173,4 +201,4 @@ object = {
 }
 
 # Required Python packages
-modules = ['winotify', 'dateparser']
+modules = ['winotify']

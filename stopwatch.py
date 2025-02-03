@@ -4,6 +4,8 @@ import asyncio
 import customtkinter as ctk
 import time
 import os
+import subprocess
+from pathlib import Path
 
 # Set theme and color scheme
 ctk.set_appearance_mode("dark")
@@ -200,9 +202,12 @@ async def func(args):
         command = args.get('command', '').lower()
         
         if command == 'open':
-            # Start new stopwatch window
-            stopwatch = ModernStopwatch()
-            stopwatch.run()
+            # Create and run a separate stopwatch process
+            current_file = Path(os.path.abspath(__file__))
+            subprocess.Popen([sys.executable, str(current_file), '--run-stopwatch'],
+                           creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+                           stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
             return json.dumps({"message": "Stopwatch opened"})
             
         elif command == 'close':
@@ -237,3 +242,8 @@ object = {
 }
 
 modules = ['customtkinter']
+
+# Add this at the end of the file
+if __name__ == '__main__' and '--run-stopwatch' in sys.argv:
+    stopwatch = ModernStopwatch()
+    stopwatch.run()

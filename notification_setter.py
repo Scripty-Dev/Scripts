@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 import subprocess
 import re
+from plyer import notification
 
 class NotificationManager:
     def __init__(self):
@@ -92,16 +93,17 @@ class NotificationManager:
                     (message, target_time.isoformat(), task_name)
                 )
 
-            # Create notification script
+            # Create notification script with plyer
             notification_script = f"""
-from winotify import Notification
-toast = Notification(
-    app_id="Python Reminder",
-    title="Reminder",
-    msg="{message}",
-    duration="long"
+import time
+from plyer import notification
+notification.notify(
+    title='Reminder',
+    message="{message}",
+    app_name='PythonReminder',
+    timeout=10
 )
-toast.show()
+time.sleep(2)  # Small delay to ensure notification shows
 """
             
             # Save notification script
@@ -115,9 +117,12 @@ toast.show()
             today = datetime.datetime.now()
             formatted_date = today.strftime('%Y/%m/%d')
             
+            # Use pythonw to run without console window
+            pythonw_path = str(Path(sys.executable).parent / "pythonw.exe")
+            
             cmd = [
                 'schtasks', '/create', '/tn', task_name,
-                '/tr', f'"{sys.executable}" "{script_path}"',
+                '/tr', f'"{pythonw_path}" "{script_path}"',
                 '/sc', 'once',
                 '/st', target_time.strftime('%H:%M'),
                 '/sd', formatted_date,
@@ -207,4 +212,4 @@ object = {
 }
 
 # Required Python packages
-modules = ['winotify']
+modules = ['plyer']

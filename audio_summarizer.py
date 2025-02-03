@@ -8,7 +8,20 @@ from datetime import datetime
 from pathlib import Path
 import os
 import subprocess
-from audio_transcripter import transcribe_file
+import requests
+
+def transcribe_file(filepath):
+    try:
+        with open(filepath, "rb") as f:
+            files = {"file": f}
+            response = requests.post(
+                f"https://scripty.me/api/assistant/transcribe?token={authtoken}",
+                files=files
+            )
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 class AudioRecorder:
     def __init__(self):
@@ -100,7 +113,7 @@ class AudioRecorder:
 
                 # Transcribe with Groq
                 print("Starting transcription...")
-                transcript_result = transcribe_file(str(audio_file), authtoken)
+                transcript_result = transcribe_file(str(audio_file))
                 
                 if transcript_result["success"]:
                     print(f"Transcription successful")
@@ -167,4 +180,4 @@ object = {
     }
 }
 
-modules = ['sounddevice', 'soundfile', 'numpy', 'audio_transcripter']
+modules = ['sounddevice', 'soundfile', 'numpy', 'requests']

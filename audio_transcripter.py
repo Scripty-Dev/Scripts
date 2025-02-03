@@ -2,12 +2,12 @@ import json
 import requests
 from pathlib import Path
 
-def transcribe_file(filepath, token):
+def transcribe_file(filepath):
     try:
         with open(filepath, "rb") as f:
             files = {"file": f}
             response = requests.post(
-                f"https://scripty.me/api/assistant/transcribe?token={token}",
+                f"https://scripty.me/api/assistant/transcribe?token={authtoken}",
                 files=files
             )
             response.raise_for_status()
@@ -18,14 +18,11 @@ def transcribe_file(filepath, token):
 async def func(args):
     try:
         audio_path = args.get("audio_path")
-        token = args.get("token")
         if not audio_path or not Path(audio_path).exists():
             return json.dumps({"success": False, "error": "Invalid audio path"})
-        if not token:
-            return json.dumps({"success": False, "error": "Token is required"})
-        return json.dumps(transcribe_file(audio_path, token))
+        return json.dumps(transcribe_file(audio_path))
     except Exception as e:
-        return json.dumps({"success": False, "error": str(e)})
+        return json.dumps({"error": str(e)})
 
 object = {
     "name": "audio_transcriber",
@@ -36,13 +33,9 @@ object = {
             "audio_path": {
                 "type": "string",
                 "description": "Path to audio file"
-            },
-            "token": {
-                "type": "string",
-                "description": "Scripty API token"
             }
         },
-        "required": ["audio_path", "token"]
+        "required": ["audio_path"]
     }
 }
 

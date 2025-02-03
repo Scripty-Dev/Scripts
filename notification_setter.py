@@ -6,6 +6,7 @@ from winotify import Notification
 import sqlite3
 from pathlib import Path
 import os
+import dateparser
 
 class NotificationManager:
     def __init__(self):
@@ -25,16 +26,28 @@ class NotificationManager:
                 )
             ''')
 
+    def parse_time(self, timestamp: str) -> datetime.datetime:
+        """Parse time string in natural language format"""
+        parsed_time = dateparser.parse(timestamp, settings={
+            'PREFER_DATES_FROM': 'future',
+            'RELATIVE_BASE': datetime.datetime.now()
+        })
+        
+        if not parsed_time:
+            raise ValueError(f"Could not parse time: {timestamp}")
+            
+        # If only time was provided (e.g., "5:00" or "5pm"), assume today
+        if len(timestamp) <= 5 and ":" in timestamp:
+            today = datetime.datetime.now().date()
+            time_obj = parsed_time.time()
+            parsed_time = datetime.datetime.combine(today, time_obj)
+            
+        return parsed_time
+
     def set_notification(self, message: str, timestamp: str) -> dict:
         """Set a new notification using Windows Task Scheduler"""
         try:
-            # Parse timestamp
-            if len(timestamp) <= 5:  # HH:MM format
-                today = datetime.datetime.now().date()
-                time_obj = datetime.datetime.strptime(timestamp, "%H:%M").time()
-                target_time = datetime.datetime.combine(today, time_obj)
-            else:  # YYYY-MM-DD HH:MM format
-                target_time = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M")
+            target_time = self.parse_time(timestamp)
 
             if target_time < datetime.datetime.now():
                 return {"error": "Cannot set notification in the past"}
@@ -131,6 +144,7 @@ toast.show()
 async def func(args):
     """
     Set or cancel Windows system notifications using Task Scheduler.
+    Supports natural language time inputs like 'tomorrow 5pm' or 'next monday 5:30pm'.
     Notifications persist through system restarts and are managed via SQLite database.
     """
     try:
@@ -154,7 +168,7 @@ async def func(args):
 # Export object for function configuration
 object = {
     "name": "notification_setter",
-    "description": "Set or cancel Windows system notifications that persist through system restarts. Uses Windows Task Scheduler for reliability.",
+    "description": "Set or cancel Windows system notifications that persist through system restarts. Supports natural language time inputs.",
     "parameters": {
         "type": "object",
         "properties": {
@@ -169,7 +183,7 @@ object = {
             },
             "time": {
                 "type": "string",
-                "description": "Time for the notification in either 'HH:MM' format for same-day or 'YYYY-MM-DD HH:MM' for future dates"
+                "description": "Time for the notification. Supports natural language like 'tomorrow 5pm', 'next monday 5:30pm', as well as formal formats like 'HH:MM' or 'YYYY-MM-DD HH:MM'"
             }
         },
         "required": ["operation"]
@@ -177,4 +191,4 @@ object = {
 }
 
 # Required Python packages
-modules = ['pywin32', 'winotify']
+modules = ['pywin32', 'winotify', 'dateparser', 'win32com']

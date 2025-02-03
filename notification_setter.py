@@ -3,7 +3,7 @@ import json
 import datetime
 from pathlib import Path
 from plyer import notification
-from windows_scheduler import WindowsScheduler
+from win_scheduler import WindowsScheduler
 
 async def func(args):
     """Set or cancel Windows notifications using Task Scheduler"""
@@ -108,4 +108,4 @@ object = {
 }
 
 # Required Python packages
-modules = ['plyer', 'windows-scheduler']
+modules = ['plyer', 'win-scheduler']

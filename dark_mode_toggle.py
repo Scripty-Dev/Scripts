@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 import platform
@@ -10,10 +11,8 @@ class DarkModeController:
         """Platform-specific initialization of dark mode controller"""
         platform = sys.platform
         if platform == 'win32':
-            import winreg
-            self._reg_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
-                                         "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-                                         0, winreg.KEY_ALL_ACCESS)
+            import subprocess
+            self._powershell = subprocess.run
         elif platform == 'darwin':
             import platform
             if int(platform.mac_ver()[0].split('.')[0]) < 10:
@@ -33,9 +32,12 @@ class DarkModeController:
         platform = sys.platform
         try:
             if platform == 'win32':
-                import winreg
-                value = winreg.QueryValueEx(self._reg_key, "AppsUseDarkTheme")[0]
-                return bool(value)
+                result = self._powershell(
+                    ['powershell', '-Command', 
+                     '(Get-ItemProperty -Path HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize -Name AppsUseDarkTheme).AppsUseDarkTheme'],
+                    capture_output=True, text=True
+                )
+                return result.stdout.strip() == '1'
             elif platform == 'darwin':
                 result = self._osascript(['osascript', '-e', 
                     'tell application "System Events" to tell appearance preferences to get dark mode'])
@@ -64,9 +66,13 @@ class DarkModeController:
         platform = sys.platform
         try:
             if platform == 'win32':
-                import winreg
-                winreg.SetValueEx(self._reg_key, "AppsUseDarkTheme", 0, winreg.REG_DWORD, enable)
-                return True
+                value = 1 if enable else 0
+                result = self._powershell(
+                    ['powershell', '-Command', 
+                     f'Set-ItemProperty -Path HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize -Name AppsUseDarkTheme -Value {value}'],
+                    capture_output=True, text=True
+                )
+                return result.returncode == 0
             elif platform == 'darwin':
                 result = self._osascript(['osascript', '-e',
                     f'tell application "System Events" to tell appearance preferences to set dark mode to {str(enable).lower()}'])
@@ -143,7 +149,7 @@ object = {
                 "type": "string", 
                 "enum": ["toggle", "get", "set"],
                 "description": "Action to perform (toggle, get current state, or set specific state)",
-                "default": "toggle"
+                "default": "toggle" 
             },
             "enable": {
                 "type": "boolean",
@@ -153,4 +159,4 @@ object = {
     }
 }
 
-modules = ['winreg'] if PLATFORM == "windows" else []
+modules = [] # No special modules needed anymore

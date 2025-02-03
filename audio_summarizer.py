@@ -100,7 +100,7 @@ class AudioRecorder:
 
                 # Transcribe with Groq
                 print("Starting transcription...")
-                transcript_result = transcribe_file(str(audio_file))
+                transcript_result = transcribe_file(str(audio_file), authtoken)
                 
                 if transcript_result["success"]:
                     print(f"Transcription successful")
@@ -143,6 +143,10 @@ recorder = AudioRecorder()
 async def func(args):
     try:
         operation = args.get("operation")
+        token = args.get("token")  # Get token from args
+        if not token:
+            return json.dumps({"error": "Token is required"})
+            
         if operation == "start":
             return json.dumps(recorder.start())
         elif operation == "stop":
@@ -160,9 +164,13 @@ object = {
             "operation": {
                 "type": "string",
                 "description": "Operation to perform (start/stop)"
+            },
+            "token": {
+                "type": "string",
+                "description": "Scripty API token"
             }
         },
-        "required": ["operation"]
+        "required": ["operation", "token"]
     }
 }
 

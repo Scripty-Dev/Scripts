@@ -1,14 +1,18 @@
 import sys
 import json
 import datetime
-import subprocess
 from pathlib import Path
 from plyer import notification
+from windows_scheduler import WindowsScheduler
 
 async def func(args):
     """Set or cancel Windows notifications using Task Scheduler"""
     try:
         operation = args.get("operation")
+        
+        # Get Python executable path and create scheduler
+        python_path = sys.executable
+        scheduler = WindowsScheduler()
         
         # Fixed path in AppData for our notification script
         script_path = Path.home() / "AppData" / "Local" / "notification_display.py"
@@ -32,12 +36,11 @@ notification.notify(
 ''')
 
         if operation == "cancel":
-            # Cancel all tasks matching our prefix
-            result = subprocess.run(
-                ['schtasks', '/delete', '/tn', 'PyNotify*', '/f'],
-                capture_output=True,
-                text=True
-            )
+            # Get all tasks and cancel ones with our prefix
+            tasks = scheduler.get_tasks()
+            for task in tasks:
+                if task.startswith('PyNotify_'):
+                    scheduler.delete_task(task)
             return json.dumps({"message": "All notifications cancelled"})
 
         message = args.get("message", "")
@@ -63,22 +66,14 @@ notification.notify(
         # Create unique task name
         task_name = f"PyNotify_{target_time.strftime('%Y%m%d%H%M%S')}"
         
-        # Set up the scheduled task
-        cmd = [
-            'schtasks', '/create',
-            '/tn', task_name,
-            '/tr', f'python "{script_path}" "{message}"',
-            '/sc', 'once',
-            '/st', target_time.strftime('%H:%M'),
-            '/sd', target_time.strftime('%Y/%m/%d'),
-            '/f'
-        ]
-
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            error_msg = result.stderr.strip()
-            return json.dumps({"error": f"Failed to create notification: {error_msg}"})
+        # Create the task with properly resolved paths
+        command = f'"{python_path}" "{script_path}" "{message}"'
+        scheduler.create_task(
+            task_name,
+            command,
+            target_time.strftime('%H:%M'),
+            target_time.strftime('%Y/%m/%d')
+        )
 
         return json.dumps({
             "message": f"Notification scheduled for {target_time.strftime('%Y-%m-%d %H:%M')}"
@@ -113,4 +108,4 @@ object = {
 }
 
 # Required Python packages
-modules = ['plyer']
+modules = ['plyer', 'windows-scheduler']

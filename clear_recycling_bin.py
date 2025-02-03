@@ -30,6 +30,13 @@ async def func(args):
         print("\n=== Starting Recycle Bin Cleaner ===")
         logging.info("Starting recycle bin clearing script")
         
+        # Handle path if provided in args
+        if 'source' in args:
+            # Convert Unix-style path to Windows path
+            source_path = args['source'].replace('~', os.path.expanduser('~'))
+            source_path = source_path.replace('/', '\\')
+            logging.info(f"Converted source path: {source_path}")
+        
         # Check if running with admin rights
         is_admin = ctypes.windll.shell32.IsUserAnAdmin()
         print(f"Admin privileges: {'Yes' if is_admin else 'No'}")
@@ -115,18 +122,4 @@ object = {
     }
 }
 
-# Log module initialization
-try:
-    print(f"Initializing on platform: {PLATFORM}")
-    logging.info(f"Script initialized on platform: {PLATFORM}")
-except Exception as e:
-    print(f"Failed to initialize logging: {str(e)}")
-
 modules = ['winshell', 'pywin32']
-
-# Main execution
-if __name__ == "__main__":
-    print("Starting main execution...")
-    # Run the async function
-    result = asyncio.run(func({}))
-    print(f"Execution complete. Result: {result}")

@@ -3,7 +3,11 @@ import json
 import datetime
 from pathlib import Path
 from plyer import notification
-import win32com.client
+try:
+    import win32com.client
+except ImportError:
+    from win32.com import client as win32com_client
+    win32com = win32com_client
 
 async def func(args):
     """Set or cancel Windows notifications using Task Scheduler"""
@@ -12,7 +16,7 @@ async def func(args):
         
         # Get Python executable path and create scheduler
         python_path = sys.executable
-        scheduler = win32com.client.Dispatch('Schedule.Service')
+        scheduler = win32com.Dispatch('Schedule.Service')
         scheduler.Connect()
         root_folder = scheduler.GetFolder('\\')
         
@@ -111,4 +115,4 @@ object = {
 }
 
 # Required Python packages
-modules = ['plyer', 'pywin32']
+modules = ['plyer', 'pywin32', 'pypiwin32']

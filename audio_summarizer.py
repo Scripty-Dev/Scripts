@@ -172,28 +172,28 @@ class AudioRecorder:
         
     def _get_stereo_mix(self):
         devices = sd.query_devices()
-        for idx, device in enumerate(devices):
-            if 'stereo mix' in device['name'].lower() and device['max_input_channels'] > 0:
-                print(f"System audio device: {device['name']}")
-                return idx
+        for i, dev in enumerate(devices):
+            if 'stereo mix' in dev['name'].lower() and dev['max_input_channels'] > 0:
+                print(f"System audio device: {{dev['name']}}")
+                return i
         return None
 
     def _get_microphone(self):
         devices = sd.query_devices()
-        for idx, device in enumerate(devices):
-            if device['max_input_channels'] > 0 and 'stereo mix' not in device['name'].lower():
-                print(f"Microphone device: {device['name']}")
-                return idx
+        for i, dev in enumerate(devices):
+            if dev['max_input_channels'] > 0 and 'stereo mix' not in dev['name'].lower():
+                print(f"Microphone device: {{dev['name']}}")
+                return i
         return sd.default.device[0]
 
-    def system_callback(self, indata, frames, time_info, status):
+    def system_callback(self, indata, frames, time, status):
         if status:
-            print(f'System Error: {status}')
+            print(f'System Error: {{status}}')
         self.recording_system.append(indata.copy())
 
-    def mic_callback(self, indata, frames, time_info, status):
+    def mic_callback(self, indata, frames, time, status):
         if status:
-            print(f'Mic Error: {status}')
+            print(f'Mic Error: {{status}}')
         self.recording_mic.append(indata.copy())
 
     def background_record(self):
@@ -208,11 +208,8 @@ class AudioRecorder:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 save_dir = Path.home() / "audio_recordings"
                 save_dir.mkdir(exist_ok=True)
-                transcripts_dir = save_dir / "transcripts"
-                transcripts_dir.mkdir(exist_ok=True)
-                audio_file = save_dir / f"recording_{timestamp}.wav"
-
-                # Process and save audio
+                
+                # Mix and save both streams
                 if self.recording_system and self.recording_mic:
                     system_audio = np.concatenate(self.recording_system, axis=0)
                     mic_audio = np.concatenate(self.recording_mic, axis=0)
@@ -237,33 +234,42 @@ class AudioRecorder:
                     if np.max(np.abs(mixed_audio)) > 1:
                         mixed_audio = mixed_audio / np.max(np.abs(mixed_audio))
                     
+                    audio_file = save_dir / f"recording_{{timestamp}}.wav"
                     with sf.SoundFile(str(audio_file), mode='w', samplerate=44100, channels=2) as f:
                         f.write(mixed_audio)
+                    print(f"Audio saved to: {{audio_file}}")
+                    
                 elif self.recording_system:
+                    audio_file = save_dir / f"recording_{{timestamp}}.wav"
                     audio_data = np.concatenate(self.recording_system, axis=0)
                     sf.write(str(audio_file), audio_data, 44100)
+                    print(f"Audio saved to: {{audio_file}}")
+                    
                 else:
+                    audio_file = save_dir / f"recording_{{timestamp}}.wav"
                     audio_data = np.concatenate(self.recording_mic, axis=0)
                     sf.write(str(audio_file), audio_data, 44100)
-                print(f"Audio saved to: {audio_file}")
+                    print(f"Audio saved to: {{audio_file}}")
 
-                # Transcribe audio
+                # Transcribe with Scripty API
                 print("Starting transcription...")
-                try:
-                    transcript_result = transcribe_file(str(audio_file))
-                    if transcript_result.get("success"):
-                        print("Transcription successful")
-                        transcript_file = transcripts_dir / f"transcript_{timestamp}.txt"
-                        with open(transcript_file, 'w') as f:
-                            f.write(transcript_result['transcript'])
-                        print(f"Saved transcript to: {transcript_file}")
-                    else:
-                        print(f"Transcription failed: {transcript_result.get('error', 'Unknown error')}")
-                except Exception as transcription_error:
-                    print(f"Transcription error: {transcription_error}")
+                transcript_result = transcribe_file(str(audio_file))
+                
+                if transcript_result["success"]:
+                    print(f"Transcription successful")
+                    transcripts_dir = save_dir / "transcripts"
+                    transcripts_dir.mkdir(exist_ok=True)
+                    print(f"Created transcripts directory: {{transcripts_dir}}")
                     
-        except Exception as recording_error:
-            print(f"Recording error: {recording_error}")
+                    transcript_file = transcripts_dir / f"transcript_{{timestamp}}.txt"
+                    with open(transcript_file, 'w') as f:
+                        f.write(transcript_result['transcript'])
+                    print(f"Saved transcript to: {{transcript_file}}")
+                else:
+                    print(f"Transcription failed: {{transcript_result['error']}}")
+                    
+        except Exception as e:
+            print(f"Recording error: {{e}}")
         finally:
             sys.exit(0)
 

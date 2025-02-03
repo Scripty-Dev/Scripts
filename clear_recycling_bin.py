@@ -1,12 +1,10 @@
 import json
 import platform
-import winshell
-import win32com.client
 import logging
 from datetime import datetime
 import os
 import ctypes
-import asyncio  # Added for async support
+import asyncio
 
 PLATFORM = platform.system().lower()
 
@@ -18,29 +16,14 @@ logging.basicConfig(
 )
 
 def get_recycle_bin_size():
-    try:
-        return len(list(winshell.recycle_bin()))
-    except Exception as e:
-        logging.error(f"Failed to get recycle bin size: {str(e)}")
-        print(f"Error checking recycle bin size: {str(e)}")
-        return None
+    # Note: Without winshell, we can't get the exact count
+    # but we can check if the operation was successful
+    return None
 
 async def func(args):
     try:
         print("\n=== Starting Recycle Bin Cleaner ===")
         logging.info("Starting recycle bin clearing script")
-        
-        # Handle path if provided in args
-        if 'source' in args:
-            # Convert Unix-style path to Windows path
-            source_path = args['source'].replace('~', os.path.expanduser('~'))
-            source_path = source_path.replace('/', '\\')
-            logging.info(f"Converted source path: {source_path}")
-        
-        # Check if running with admin rights
-        is_admin = ctypes.windll.shell32.IsUserAnAdmin()
-        print(f"Admin privileges: {'Yes' if is_admin else 'No'}")
-        logging.info(f"Running with admin privileges: {bool(is_admin)}")
         
         if PLATFORM != "windows":
             error_msg = f"Unsupported platform: {PLATFORM}"
@@ -48,51 +31,26 @@ async def func(args):
             logging.error(error_msg)
             return json.dumps({"error": "This script only works on Windows systems"})
         
-        # Check initial recycle bin state
-        print("\nChecking initial recycle bin state...")
-        initial_items = get_recycle_bin_size()
-        print(f"Items in recycle bin: {initial_items}")
-        logging.info(f"Initial items in recycle bin: {initial_items}")
-        
-        if initial_items == 0:
-            print("Recycle bin is already empty!")
-            return json.dumps({"message": "Recycle bin is already empty"})
+        # Check if running with admin rights
+        is_admin = ctypes.windll.shell32.IsUserAnAdmin()
+        print(f"Admin privileges: {'Yes' if is_admin else 'No'}")
+        logging.info(f"Running with admin privileges: {bool(is_admin)}")
         
         print("\nAttempting to clear recycle bin...")
         success = False
         
         try:
-            # Try the first method (winshell)
-            print("Method 1: Using winshell...")
-            logging.info("Attempting to clear recycle bin using winshell")
-            winshell.recycle_bin().empty(confirm=False, show_progress=False, sound=False)
-            print("Winshell method completed")
-            success = True
-        except Exception as e:
-            print(f"Winshell method failed: {str(e)}")
-            logging.error(f"winshell method failed: {str(e)}")
-            
-            # Try alternative method using shell32
-            print("\nMethod 2: Using shell32...")
-            logging.info("Attempting alternative clear method using shell32")
-            try:
-                ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, 0)
-                print("Shell32 method completed")
+            # Use shell32 to empty the recycle bin
+            result = ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, 0)
+            if result == 0:  # 0 indicates success
                 success = True
-            except Exception as e2:
-                print(f"Shell32 method failed: {str(e2)}")
-                logging.error(f"shell32 method failed: {str(e2)}")
-        
-        # Verify the recycle bin is empty
-        print("\nVerifying results...")
-        final_items = get_recycle_bin_size()
-        print(f"Items remaining in recycle bin: {final_items}")
-        logging.info(f"Final items in recycle bin: {final_items}")
-        
-        if final_items == 0:
-            message = "Recycle bin cleared successfully!"
-        else:
-            message = f"Warning: Recycle bin still contains {final_items} items"
+                message = "Recycle bin cleared successfully!"
+            else:
+                message = f"Failed to clear recycle bin. Error code: {result}"
+            
+        except Exception as e:
+            message = f"Error clearing recycle bin: {str(e)}"
+            logging.error(message)
             
         print(f"\nResult: {message}")
         print("=== Operation Complete ===\n")
@@ -100,8 +58,6 @@ async def func(args):
         logging.info(message)
         return json.dumps({
             "message": message,
-            "initial_items": initial_items,
-            "final_items": final_items,
             "admin_rights": bool(is_admin),
             "success": success
         })
@@ -122,4 +78,4 @@ object = {
     }
 }
 
-modules = ['winshell', 'pywin32']
+modules = []  # No external modules required

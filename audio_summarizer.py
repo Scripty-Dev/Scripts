@@ -174,4 +174,4 @@ object = {
     }
 }
 
-modules = ['sounddevice', 'soundfile', 'numpy']
+modules = ['sounddevice', 'soundfile', 'numpy', 'audio_transcripter']

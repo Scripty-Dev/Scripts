@@ -13,7 +13,10 @@ async def func(args):
     """
     try:
         operation = args.get("operation")
-        scripts_dir = Path(os.path.dirname(os.path.abspath(__file__)))
+        
+        # Use AppData for the scripts
+        scripts_dir = Path.home() / "AppData" / "Local" / "NotificationScripts"
+        scripts_dir.mkdir(exist_ok=True)
         notify_script = scripts_dir / "notification_runner.py"
         
         # Create the notification runner script if it doesn't exist

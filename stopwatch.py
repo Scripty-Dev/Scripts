@@ -268,8 +268,3 @@ object = {
 }
 
 modules = ['customtkinter']
-
-# Add this at the end of the file
-if __name__ == '__main__' and '--run-stopwatch' in sys.argv:
-    stopwatch = ModernStopwatch()
-    stopwatch.run()

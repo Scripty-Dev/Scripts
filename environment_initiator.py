@@ -1,39 +1,13 @@
 import subprocess
 import os
-import sys
 import json
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 
-def run_command(command, cwd=None):
-    try:
-        print(f"Executing command: {command}")
-        process = subprocess.Popen(command, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        
-        if stdout:
-            print("Output:", stdout.decode())
-        if stderr:
-            print("Errors:", stderr.decode())
-            
-        process.wait()
-        return process.returncode == 0
-    except Exception as e:
-        print(f"Error executing command: {e}")
-        return False
-
-def modify_css(path):
-    css_content = """@tailwind base;
-@tailwind components;
-@tailwind utilities;"""
-    with open(os.path.join(path, 'src', 'index.css'), 'w') as f:
-        f.write(css_content)
-
-def create_tailwind_config(path):
-    config_content = """/** @type {import('tailwindcss').Config} */
+# Common configuration content
+TAILWIND_CONFIG = """/** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       animation: {
@@ -43,1038 +17,117 @@ export default {
   },
   plugins: [],
 }"""
-    with open(os.path.join(path, 'tailwind.config.js'), 'w') as f:
-        f.write(config_content)
 
-def create_postcss_config(path):
-    config_content = """export default {
+POSTCSS_CONFIG = """export default {
   plugins: {
     'tailwindcss/nesting': {},
     tailwindcss: {},
     autoprefixer: {},
   },
 }"""
-    with open(os.path.join(path, 'postcss.config.js'), 'w') as f:
-        f.write(config_content)
 
-def update_app_tsx(path):
-    app_content = """import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+CSS_CONTENT = """@tailwind base;
+@tailwind components;
+@tailwind utilities;"""
 
-function App() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="flex gap-8 mb-8">
-        <a href="https://vite.dev" target="_blank" className="hover:scale-110 transition-transform">
-          <img src={viteLogo} className="h-32 w-32" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank" className="hover:scale-110 transition-transform">
-          <img src={reactLogo} className="h-32 w-32 animate-spin-slow" alt="React logo" />
-        </a>
-      </div>
-      
-      <h1 className="text-4xl font-bold mb-8">
-        Vite + React + Tailwind project initialized by{' '}
-        <span className="text-purple-600">Scripty</span>
-      </h1>
-      
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-        <p className="text-gray-600">
-          Edit <code className="bg-gray-100 px-2 py-1 rounded">src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-
-      <p className="text-gray-500">
-        Click on the Vite and React logos to learn more
-      </p>
-    </div>
-  )
-}
-
-export default App"""
-    with open(os.path.join(path, 'src', 'App.tsx'), 'w') as f:
-        f.write(app_content)
-
-def setup_nextjs(path, folder_name):
-    full_path = os.path.join(path, folder_name)
-    
-    print(f"Creating Next.js project in: {full_path}")
-    
-    # Create Next.js project with TypeScript and Tailwind
-    create_command = f"npx create-next-app@latest {folder_name} --ts --tailwind --eslint --app --src-dir --import-alias '@/*' -y --no-turbopack --use-npm --yes"
-    
-    if not run_command(create_command, cwd=path):
+def run_command(command: str, cwd: Optional[str] = None) -> bool:
+    """Execute a shell command and return success status"""
+    try:
+        process = subprocess.Popen(
+            command, 
+            cwd=cwd, 
+            shell=True, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE
+        )
+        stdout, stderr = process.communicate()
+        
+        if stdout: print("Output:", stdout.decode())
+        if stderr: print("Errors:", stderr.decode())
+            
+        return process.returncode == 0
+    except Exception as e:
+        print(f"Error executing command: {e}")
         return False
+
+class FileManager:
+    """Handles file operations for project setup"""
+    
+    @staticmethod
+    def write_file(path: str, content: str) -> None:
+        """Write content to a file, creating directories if needed"""
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+    @staticmethod
+    def write_json(path: str, content: Dict[str, Any]) -> None:
+        """Write JSON content to a file"""
+        FileManager.write_file(path, json.dumps(content, indent=2))
+
+class ProjectBuilder:
+    """Base class for project setup"""
+    def __init__(self, path: str, name: str):
+        self.path = path
+        self.name = name
+        self.full_path = os.path.join(path, name)
         
-    # Update the page.tsx with custom content
-    page_content = """import Image from 'next/image'
-
-export default function Home() {
-  return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="flex gap-8 mb-8">
-        <div className="hover:scale-110 transition-transform">
-          <Image
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-        </div>
-      </div>
-      
-      <h1 className="text-4xl font-bold mb-8">
-        Next.js + TypeScript + Tailwind project initialized by{' '}
-        <span className="text-purple-600">Scripty</span>
-      </h1>
-      
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-        <p className="text-gray-600">
-          Edit <code className="bg-gray-100 px-2 py-1 rounded">src/app/page.tsx</code> and save to test HMR
-        </p>
-      </div>
-
-      <div className="grid grid-cols-4 gap-4">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
-}"""
-    
-    with open(os.path.join(full_path, 'src', 'app', 'page.tsx'), 'w') as f:
-        f.write(page_content)
-        
-    return True
-
-def setup_express_ts(path, folder_name):
-    full_path = os.path.join(path, folder_name)
-    
-    print(f"Creating Express.js + TypeScript project in: {full_path}")
-    
-    # Create project directory
-    os.makedirs(full_path, exist_ok=True)
-    
-    # Initialize package.json
-    package_json = {
-        "name": folder_name,
-        "version": "1.0.0",
-        "description": "Express.js + TypeScript API initialized by Scripty",
-        "main": "dist/index.js",
-        "scripts": {
-            "dev": "nodemon",
-            "build": "tsc",
-            "start": "node dist/index.js",
-            "watch": "tsc -w"
-        }
-    }
-    
-    with open(os.path.join(full_path, 'package.json'), 'w') as f:
-        json.dump(package_json, f, indent=2)
-    
-    # Install dependencies
-    commands = [
-        "npm install express cors dotenv",
-        "npm install -D typescript @types/node @types/express @types/cors ts-node nodemon",
-        "npx tsc --init"
-    ]
-    
-    for cmd in commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=full_path):
+    def create_project(self) -> bool:
+        """Template method for project creation"""
+        try:
+            self._prepare_environment()
+            self._install_dependencies()
+            self._configure_project()
+            return True
+        except Exception as e:
+            print(f"Error creating project: {e}")
             return False
-    
-    # Create tsconfig.json
-    tsconfig = {
-        "compilerOptions": {
-            "target": "es2017",
-            "module": "commonjs",
-            "outDir": "./dist",
-            "rootDir": "./src",
-            "strict": True,
-            "esModuleInterop": True,
-            "skipLibCheck": True,
-            "forceConsistentCasingInFileNames": True
-        },
-        "include": ["src/**/*"],
-        "exclude": ["node_modules"]
-    }
-    
-    with open(os.path.join(full_path, 'tsconfig.json'), 'w') as f:
-        json.dump(tsconfig, f, indent=2)
-    
-    # Create nodemon.json
-    nodemon_config = {
-        "watch": ["src"],
-        "ext": ".ts,.js",
-        "ignore": [],
-        "exec": "ts-node ./src/index.ts"
-    }
-    
-    with open(os.path.join(full_path, 'nodemon.json'), 'w') as f:
-        json.dump(nodemon_config, f, indent=2)
-    
-    # Create .env
-    env_content = """PORT=3000
-NODE_ENV=development"""
-    
-    with open(os.path.join(full_path, '.env'), 'w') as f:
-        f.write(env_content)
-    
-    # Create source directory structure
-    src_dir = os.path.join(full_path, 'src')
-    routes_dir = os.path.join(src_dir, 'routes')
-    middleware_dir = os.path.join(src_dir, 'middleware')
-    
-    os.makedirs(src_dir)
-    os.makedirs(routes_dir)
-    os.makedirs(middleware_dir)
-    
-    # Create main server file
-    server_content = """import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import { errorHandler } from './middleware/errorHandler';
-import indexRouter from './routes';
-
-// Load environment variables
-dotenv.config();
-
-const app = express();
-const port = process.env.PORT || 3000;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Routes
-app.use('/', indexRouter);
-
-// Error handling
-app.use(errorHandler);
-
-app.listen(port, () => {
-    console.log(`[server]: Server is running at http://localhost:${port}`);
-    console.log(`Environment: ${process.env.NODE_ENV}`);
-});"""
-    
-    with open(os.path.join(src_dir, 'index.ts'), 'w') as f:
-        f.write(server_content)
-    
-    # Create error handler middleware
-    error_handler_content = """import { Request, Response, NextFunction } from 'express';
-
-export const errorHandler = (
-    err: Error,
-    req: Request,
-    res: Response,
-    next: NextFunction
-) => {
-    console.error(err.stack);
-    res.status(500).json({
-        status: 'error',
-        message: 'Internal Server Error'
-    });
-};"""
-    
-    with open(os.path.join(middleware_dir, 'errorHandler.ts'), 'w') as f:
-        f.write(error_handler_content)
-    
-    # Create index router
-    router_content = """import express from 'express';
-const router = express.Router();
-
-// Health check endpoint
-router.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        message: 'Server is healthy',
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Example endpoint
-router.get('/api/hello', (req, res) => {
-    res.json({
-        message: 'Hello from Express + TypeScript!',
-        info: 'This API was initialized by Scripty'
-    });
-});
-
-export default router;"""
-    
-    with open(os.path.join(routes_dir, 'index.ts'), 'w') as f:
-        f.write(router_content)
-    
-    # Create README
-    readme_content = f"""# {folder_name}
-
-Express.js + TypeScript API initialized by Scripty
-
-## Getting Started
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-2. Start development server:
-   ```bash
-   npm run dev
-   ```
-
-3. Build for production:
-   ```bash
-   npm run build
-   npm start
-   ```
-
-## Available Scripts
-
-- `npm run dev`: Start development server with hot-reload
-- `npm run build`: Build for production
-- `npm start`: Start production server
-- `npm run watch`: Watch for changes and rebuild
-
-## API Endpoints
-
-- `GET /health`: Health check endpoint
-- `GET /api/hello`: Example endpoint
-
-## Environment Variables
-
-- `PORT`: Server port (default: 3000)
-- `NODE_ENV`: Environment name (development/production)
-"""
-    
-    with open(os.path.join(full_path, 'README.md'), 'w') as f:
-        f.write(readme_content)
+            
+    def _prepare_environment(self) -> None:
+        raise NotImplementedError
         
-    return True
-
-def setup_mern(path, folder_name):
-    full_path = os.path.join(path, folder_name)
-    
-    # Create main project directories
-    backend_path = os.path.join(full_path, 'backend')
-    frontend_path = os.path.join(full_path, 'frontend')
-    
-    os.makedirs(full_path)
-    os.makedirs(backend_path)
-    os.makedirs(frontend_path)
-    
-    # Setup Backend
-    print("\nSetting up MERN Backend...")
-    
-    # Initialize backend package.json with corrected scripts
-    backend_package = {
-        "name": f"{folder_name}-backend",
-        "version": "1.0.0",
-        "description": "MERN Stack Backend initialized by Scripty",
-        "main": "src/index.ts",
-        "scripts": {
-            "dev": "nodemon src/index.ts",
-            "build": "tsc",
-            "start": "node dist/index.js"
-        }
-    }
-    
-    with open(os.path.join(backend_path, 'package.json'), 'w') as f:
-        json.dump(backend_package, f, indent=2)
-    
-    # Install backend dependencies
-    backend_commands = [
-        "npm install express cors dotenv mongoose jsonwebtoken bcryptjs",
-        "npm install -D typescript @types/node @types/express @types/cors @types/mongoose @types/jsonwebtoken @types/bcryptjs ts-node nodemon",
-        "npx tsc --init"
-    ]
-    
-    for cmd in backend_commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=backend_path):
-            return False
-
-    # Create backend directory structure
-    backend_src = os.path.join(backend_path, 'src')
-    os.makedirs(os.path.join(backend_src, 'routes'), exist_ok=True)
-    os.makedirs(os.path.join(backend_src, 'models'), exist_ok=True)
-    os.makedirs(os.path.join(backend_src, 'middleware'), exist_ok=True)
-    
-    # Create nodemon.json
-    nodemon_config = {
-        "watch": ["src"],
-        "ext": ".ts,.js",
-        "ignore": [],
-        "exec": "ts-node ./src/index.ts"
-    }
-    
-    with open(os.path.join(backend_path, 'nodemon.json'), 'w') as f:
-        json.dump(nodemon_config, f, indent=2)
-    
-    # Create main server file (index.ts)
-    server_content = """import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config();
-
-const app = express();
-const port = process.env.PORT || 5000;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Basic route for testing
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'Backend is working! Initialize by Scripty' });
-});
-
-app.listen(port, () => {
-  console.log(`[server]: Server is running at http://localhost:${port}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-});"""
-
-    with open(os.path.join(backend_src, 'index.ts'), 'w') as f:
-        f.write(server_content)
-    
-    # Create backend .env
-    env_content = """PORT=5000
-MONGODB_URI=mongodb://localhost:27017/mern_db
-JWT_SECRET=your_jwt_secret
-NODE_ENV=development"""
-    
-    with open(os.path.join(backend_path, '.env'), 'w') as f:
-        f.write(env_content)
-
-    # Create tsconfig.json with correct settings
-    tsconfig = {
-        "compilerOptions": {
-            "target": "es2017",
-            "module": "commonjs",
-            "outDir": "./dist",
-            "rootDir": "./src",
-            "strict": True,
-            "esModuleInterop": True,
-            "skipLibCheck": True,
-            "forceConsistentCasingInFileNames": True
-        },
-        "include": ["src/**/*"],
-        "exclude": ["node_modules"]
-    }
-    
-    with open(os.path.join(backend_path, 'tsconfig.json'), 'w') as f:
-        json.dump(tsconfig, f, indent=2)
-    
-    # [Rest of the frontend setup remains the same]
-    # Setup Frontend
-    print("\nSetting up MERN Frontend...")
-    
-    frontend_commands = [
-        f"npm create vite@latest . -- --template react-ts --force",
-        "npm install",
-        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
-        "npm install axios @tanstack/react-query react-router-dom"
-    ]
-    
-    for cmd in frontend_commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=frontend_path):
-            return False
-    
-    # Use the same helper functions as setup_vite
-    create_tailwind_config(frontend_path)
-    create_postcss_config(frontend_path)
-    modify_css(frontend_path)
-    
-    # Create frontend .env
-    frontend_env = """VITE_API_URL=http://localhost:5000/api"""
-    
-    with open(os.path.join(frontend_path, '.env'), 'w') as f:
-        f.write(frontend_env)
-    
-    # Update App.tsx with MERN-specific content
-    app_content = """import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-
-const queryClient = new QueryClient()
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <header className="bg-white shadow">
-            <div className="max-w-7xl mx-auto py-6 px-4">
-              <h1 className="text-3xl font-bold text-gray-900">
-                MERN Stack App <span className="text-purple-600">by Scripty</span>
-              </h1>
-            </div>
-          </header>
-          <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            <div className="px-4 py-6 sm:px-0">
-              <Routes>
-                <Route path="/" element={<div>Welcome to your MERN Stack app!</div>} />
-              </Routes>
-            </div>
-          </main>
-        </div>
-      </Router>
-    </QueryClientProvider>
-  )
-}
-
-export default App"""
-    
-    with open(os.path.join(frontend_path, 'src', 'App.tsx'), 'w') as f:
-        f.write(app_content)
-    
-    # Create README without code blocks
-    readme_content = f"""# {folder_name}
-
-MERN (MongoDB, Express, React, Node.js) Stack project initialized by Scripty
-
-## Project Structure
-{folder_name}/
-- backend/         # Express + TypeScript backend
-- frontend/        # React + TypeScript frontend
-
-## Getting Started
-
-1. Start MongoDB locally or update MONGODB_URI in backend/.env
-
-2. Start the backend:
-   cd backend
-   npm install
-   npm run dev
-
-3. Start the frontend:
-   cd frontend
-   npm install
-   npm run dev"""
-    
-    with open(os.path.join(full_path, 'README.md'), 'w') as f:
-        f.write(readme_content)
+    def _install_dependencies(self) -> None:
+        raise NotImplementedError
         
-    return True
+    def _configure_project(self) -> None:
+        raise NotImplementedError
 
-def setup_flask_ts(path, folder_name):
-    full_path = os.path.join(path, folder_name)
-    
-    # Create main project directories
-    backend_path = os.path.join(full_path, 'backend')
-    frontend_path = os.path.join(full_path, 'frontend')
-    
-    os.makedirs(full_path)
-    os.makedirs(backend_path)
-    os.makedirs(frontend_path)
-    
-    # Setup Backend
-    print("\nSetting up Flask Backend...")
-    
-    # Create backend structure
-    backend_app = os.path.join(backend_path, 'app')
-    os.makedirs(os.path.join(backend_app, 'routes'), exist_ok=True)
-    os.makedirs(os.path.join(backend_app, 'models'), exist_ok=True)
-    os.makedirs(os.path.join(backend_app, 'schemas'), exist_ok=True)
-    
-    # Create pyproject.toml for Poetry
-    pyproject_content = """[tool.poetry]
-name = "flask-ts-backend"
-version = "0.1.0"
-description = "Flask backend initialized by Scripty"
-authors = ["Your Name <your.email@example.com>"]
+    def _setup_tailwind(self) -> None:
+        """Common Tailwind setup"""
+        FileManager.write_file(
+            os.path.join(self.full_path, 'tailwind.config.js'),
+            TAILWIND_CONFIG
+        )
+        FileManager.write_file(
+            os.path.join(self.full_path, 'postcss.config.js'),
+            POSTCSS_CONFIG
+        )
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'index.css'),
+            CSS_CONTENT
+        )
 
-[tool.poetry.dependencies]
-python = "^3.9"
-flask = "^3.0.0"
-flask-cors = "^4.0.0"
-python-dotenv = "^1.0.0"
-flask-sqlalchemy = "^3.1.0"
-marshmallow = "^3.20.0"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4.0"
-black = "^23.7.0"
-mypy = "^1.5.0"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"""
-
-    with open(os.path.join(backend_path, 'pyproject.toml'), 'w') as f:
-        f.write(pyproject_content)
+class ViteReactBuilder(ProjectBuilder):
+    """Handles Vite + React project setup"""
     
-    # Create main app file
-    app_content = """from flask import Flask
-from flask_cors import CORS
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-def create_app():
-    app = Flask(__name__)
-    CORS(app)
-    
-    # Configure SQLAlchemy
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///app.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
-    # Register routes
-    from app.routes import main
-    app.register_blueprint(main.bp)
-    
-    return app
-
-app = create_app()
-
-if __name__ == '__main__':
-    app.run(port=5000)"""
-    
-    with open(os.path.join(backend_app, '__init__.py'), 'w') as f:
-        f.write(app_content)
-    
-    # Create routes
-    routes_content = """from flask import Blueprint, jsonify
-
-bp = Blueprint('main', __name__, url_prefix='/api')
-
-@bp.route('/test')
-def test():
-    return jsonify({'message': 'Flask backend is working! Initialized by Scripty'})"""
-    
-    with open(os.path.join(backend_app, 'routes', 'main.py'), 'w') as f:
-        f.write(routes_content)
-    
-    # Create models
-    models_content = """from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy()
-
-# Example model
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    
-    def __repr__(self):
-        return f'<User {self.username}>'"""
-    
-    with open(os.path.join(backend_app, 'models', '__init__.py'), 'w') as f:
-        f.write(models_content)
-    
-    # Create .env
-    env_content = """FLASK_APP=app
-FLASK_ENV=development
-FLASK_DEBUG=1
-DATABASE_URL=sqlite:///app.db
-SECRET_KEY=your-secret-key-here"""
-    
-    with open(os.path.join(backend_path, '.env'), 'w') as f:
-        f.write(env_content)
-    
-    # Create requirements.txt as backup
-    requirements_content = """flask>=3.0.0
-flask-cors>=4.0.0
-python-dotenv>=1.0.0
-flask-sqlalchemy>=3.1.0
-marshmallow>=3.20.0"""
-    
-    with open(os.path.join(backend_path, 'requirements.txt'), 'w') as f:
-        f.write(requirements_content)
-    
-    # Setup Frontend (reuse Vite setup)
-    print("\nSetting up TypeScript Frontend...")
-    
-    frontend_commands = [
-        f"npm create vite@latest . -- --template react-ts --force",
-        "npm install",
-        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
-        "npm install axios @tanstack/react-query react-router-dom"
-    ]
-    
-    for cmd in frontend_commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=frontend_path):
-            return False
-    
-    # Use the same helper functions as setup_vite
-    create_tailwind_config(frontend_path)
-    create_postcss_config(frontend_path)
-    modify_css(frontend_path)
-    
-    # Create frontend .env
-    frontend_env = """VITE_API_URL=http://localhost:5000/api"""
-    
-    with open(os.path.join(frontend_path, '.env'), 'w') as f:
-        f.write(frontend_env)
-    
-    # Create App.tsx with Flask backend test
-    app_content = """import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import axios from 'axios'
-
-const queryClient = new QueryClient()
-
-function App() {
-  const [backendMessage, setBackendMessage] = useState('')
-
-  useEffect(() => {
-    axios.get('http://localhost:5000/api/test')
-      .then(response => setBackendMessage(response.data.message))
-      .catch(error => console.error('Error:', error))
-  }, [])
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <header className="bg-white shadow">
-            <div className="max-w-7xl mx-auto py-6 px-4">
-              <h1 className="text-3xl font-bold text-gray-900">
-                Flask + TypeScript App <span className="text-purple-600">by Scripty</span>
-              </h1>
-            </div>
-          </header>
-          <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            <div className="px-4 py-6 sm:px-0">
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <p className="text-gray-600">Backend Message:</p>
-                <p className="text-lg font-semibold mt-2">{backendMessage}</p>
-              </div>
-              <Routes>
-                <Route path="/" element={<div>Welcome to your Flask + TypeScript app!</div>} />
-              </Routes>
-            </div>
-          </main>
-        </div>
-      </Router>
-    </QueryClientProvider>
-  )
-}
-
-export default App"""
-    
-    with open(os.path.join(frontend_path, 'src', 'App.tsx'), 'w') as f:
-        f.write(app_content)
-    
-    # Create README
-    readme_content = f"""# {folder_name}
-
-Flask + TypeScript Stack project initialized by Scripty
-
-## Project Structure
-{folder_name}/
-- backend/         # Flask Python backend
-- frontend/        # React TypeScript frontend
-
-## Getting Started
-
-1. Start the backend:
-   cd backend
-   # If using Poetry:
-   poetry install
-   poetry run flask run
-   # If using pip:
-   pip install -r requirements.txt
-   flask run
-
-2. Start the frontend:
-   cd frontend
-   npm install
-   npm run dev"""
-    
-    with open(os.path.join(full_path, 'README.md'), 'w') as f:
-        f.write(readme_content)
+    def _prepare_environment(self) -> None:
+        run_command(f"npm create vite@latest {self.name} -- --template react-ts --force", self.path)
         
-    return True
-
-def setup_fastapi_react(path, folder_name):
-    full_path = os.path.join(path, folder_name)
-    
-    # Create main project directories
-    backend_path = os.path.join(full_path, 'backend')
-    frontend_path = os.path.join(full_path, 'frontend')
-    
-    os.makedirs(full_path)
-    os.makedirs(backend_path)
-    os.makedirs(frontend_path)
-    
-    # Backend setup
-    print("\nSetting up FastAPI Backend...")
-    
-    # Create backend structure
-    backend_app = os.path.join(backend_path, 'app')
-    os.makedirs(os.path.join(backend_app, 'routers'), exist_ok=True)
-    os.makedirs(os.path.join(backend_app, 'models'), exist_ok=True)
-    os.makedirs(os.path.join(backend_app, 'schemas'), exist_ok=True)
-    
-    # Create pyproject.toml for Poetry
-    pyproject_content = """[tool.poetry]
-name = "fastapi-react-backend"
-version = "0.1.0"
-description = "FastAPI backend initialized by Scripty"
-authors = ["Your Name <your.email@example.com>"]
-
-[tool.poetry.dependencies]
-python = "^3.9"
-fastapi = "^0.109.0"
-uvicorn = "^0.27.0"
-pydantic = "^2.6.0"
-sqlalchemy = "^2.0.25"
-python-dotenv = "^1.0.0"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4.0"
-black = "^23.7.0"
-mypy = "^1.5.0"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"""
-
-    with open(os.path.join(backend_path, 'pyproject.toml'), 'w') as f:
-        f.write(pyproject_content)
-
-    # Create main.py
-    main_content = """from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-app = FastAPI(title="FastAPI Backend", version="1.0.0")
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React dev server
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/api/test")
-async def test():
-    return {"message": "FastAPI backend is working! Initialized by Scripty"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-"""
-
-    with open(os.path.join(backend_path, 'main.py'), 'w') as f:
-        f.write(main_content)
-
-    # Create .env
-    env_content = """PORT=8000
-DATABASE_URL=sqlite:///./app.db
-ENVIRONMENT=development"""
-
-    with open(os.path.join(backend_path, '.env'), 'w') as f:
-        f.write(env_content)
-
-    # Create requirements.txt as backup
-    requirements_content = """fastapi>=0.109.0
-uvicorn>=0.27.0
-pydantic>=2.6.0
-sqlalchemy>=2.0.25
-python-dotenv>=1.0.0"""
-
-    with open(os.path.join(backend_path, 'requirements.txt'), 'w') as f:
-        f.write(requirements_content)
-
-    # Frontend setup (reuse our Vite setup)
-    print("\nSetting up React Frontend...")
-    
-    frontend_commands = [
-        f"npm create vite@latest . -- --template react-ts --force",
-        "npm install",
-        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
-        "npm install axios @tanstack/react-query react-router-dom"
-    ]
-    
-    for cmd in frontend_commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=frontend_path):
-            return False
-
-    # Use helper functions
-    create_tailwind_config(frontend_path)
-    create_postcss_config(frontend_path)
-    modify_css(frontend_path)
-
-    # Create frontend .env
-    frontend_env = """VITE_API_URL=http://localhost:8000/api"""
-    
-    with open(os.path.join(frontend_path, '.env'), 'w') as f:
-        f.write(frontend_env)
-
-    # Create App.tsx with FastAPI test
-    app_content = """import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import axios from 'axios'
-
-const queryClient = new QueryClient()
-
-function App() {
-  const [backendMessage, setBackendMessage] = useState('')
-
-  useEffect(() => {
-    axios.get('http://localhost:8000/api/test')
-      .then(response => setBackendMessage(response.data.message))
-      .catch(error => console.error('Error:', error))
-  }, [])
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <header className="bg-white shadow">
-            <div className="max-w-7xl mx-auto py-6 px-4">
-              <h1 className="text-3xl font-bold text-gray-900">
-                FastAPI + React App <span className="text-purple-600">by Scripty</span>
-              </h1>
-            </div>
-          </header>
-          <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            <div className="px-4 py-6 sm:px-0">
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <p className="text-gray-600">Backend Message:</p>
-                <p className="text-lg font-semibold mt-2">{backendMessage}</p>
-              </div>
-              <div className="mt-8">
-                <a 
-                  href="http://localhost:8000/docs" 
-                  target="_blank"
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  View FastAPI Documentation -&gt;
-                </a>
-              </div>
-              <Routes>
-                <Route path="/" element={<div className="mt-8">Welcome to your FastAPI + React app!</div>} />
-              </Routes>
-            </div>
-          </main>
-        </div>
-      </Router>
-    </QueryClientProvider>
-  )
-}
-
-export default App"""
-    
-    with open(os.path.join(frontend_path, 'src', 'App.tsx'), 'w') as f:
-        f.write(app_content)
-
-    # Create README
-    readme_content = f"""# {folder_name}
-
-FastAPI + React Stack project initialized by Scripty
-
-## Project Structure
-{folder_name}/
-- backend/         # FastAPI Python backend
-- frontend/        # React TypeScript frontend
-
-## Getting Started
-
-1. Start the backend:
-   cd backend
-   # If using Poetry:
-   poetry install
-   poetry run uvicorn main:app --reload
-   # If using pip:
-   pip install -r requirements.txt
-   uvicorn main:app --reload
-
-2. Start the frontend:
-   cd frontend
-   npm install
-   npm run dev
-
-## Features
-- Interactive API docs at http://localhost:8000/docs
-- React Query for data fetching
-- TailwindCSS for styling
-- TypeScript for type safety"""
-
-    with open(os.path.join(full_path, 'README.md'), 'w', encoding='utf-8') as f:
-        f.write(readme_content)
+    def _install_dependencies(self) -> None:
+        commands = [
+            "npm install",
+            "npm install vue-router@4 pinia @vueuse/core",
+            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14"
+        ]
+        for cmd in commands:
+            run_command(cmd, self.full_path)
+            
+    def _configure_project(self) -> None:
+        self._setup_tailwind()
         
-    return True
-
-def setup_vue(path, folder_name):
-    full_path = os.path.join(path, folder_name)
-    
-    print(f"Creating Vue 3 + TypeScript project in: {full_path}")
-    
-    # Create Vue project with Vite and install initial dependencies
-    commands = [
-        f"npm create vite@latest {folder_name} -- --template vue-ts --force",
-        "npm install",
-        "npm install vue-router@4 pinia @vueuse/core",
-        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
-        "npx tailwindcss init -p" 
-    ]
-    
-    for cmd in commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=path if cmd == commands[0] else full_path):
-            return False
-
-    tailwind_config = """/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{vue,js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-}"""
-
-    with open(os.path.join(full_path, 'tailwind.config.js'), 'w') as f:
-        f.write(tailwind_config)
-        
-    # Create PostCSS config
-    postcss_config = """export default {
-  plugins: {
-    'tailwindcss': {},
-    autoprefixer: {},
-  },
-}"""
-
-    with open(os.path.join(full_path, 'postcss.config.js'), 'w') as f:
-        f.write(postcss_config)
-
-    # Update App.vue with Scripty branding
-    app_content = """<script setup lang="ts">
+        # Configure Vue app
+        app_content = """<script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
-
 </script>
 
 <template>
@@ -1108,222 +161,47 @@ import { RouterLink, RouterView } from 'vue-router'
     </main>
   </div>
 </template>"""
+        
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'App.vue'),
+            app_content
+        )
 
-    with open(os.path.join(full_path, 'src', 'App.vue'), 'w') as f:
-        f.write(app_content)
-
-    # Create Home view with fixed template
-    home_content = """<script setup lang="ts">
-import { ref } from 'vue'
-
-const count = ref(0)
-</script>
-
-<template>
-  <div class="text-center">
-    <h1 class="text-4xl font-bold mb-8">
-      Vue 3 + TypeScript project initialized by
-      <span class="text-emerald-600">Scripty</span>
-    </h1>
-
-    <div class="bg-white rounded-xl shadow-lg p-6 mb-8 max-w-2xl mx-auto">
-      <p class="text-gray-600 mb-4">
-        Edit <code class="bg-gray-100 px-2 py-1 rounded">src/views/HomeView.vue</code> to test HMR
-      </p>
-
-      <div class="flex justify-center gap-4 items-center">
-        <button
-          type="button"
-          class="px-4 py-2 font-semibold text-sm bg-emerald-500 text-white rounded-md shadow-sm hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-          @click="count++"
-        >
-          Count is: {{ count }}
-        </button>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-      <!-- First Link -->
-      <a
-        href="https://vuejs.org/guide/introduction.html"
-        target="_blank"
-        class="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-emerald-300 hover:bg-emerald-50"
-      >
-        <h2 class="mb-3 text-2xl font-semibold">
-          Documentation
-          <span class="inline-block transition-transform group-hover:translate-x-1">-></span>
-        </h2>
-        <p class="text-sm opacity-70">Find in-depth information about Vue 3 features and API.</p>
-      </a>
-
-      <!-- Second Link -->
-      <a
-        href="https://pinia.vuejs.org/"
-        target="_blank"
-        class="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-emerald-300 hover:bg-emerald-50"
-      >
-        <h2 class="mb-3 text-2xl font-semibold">
-          Pinia
-          <span class="inline-block transition-transform group-hover:translate-x-1">-></span>
-        </h2>
-        <p class="text-sm opacity-70">Learn about Vue's official state management library.</p>
-      </a>
-    </div>
-  </div>
-</template>"""
-
-    os.makedirs(os.path.join(full_path, 'src', 'views'), exist_ok=True)
-    with open(os.path.join(full_path, 'src', 'views', 'HomeView.vue'), 'w') as f:
-        f.write(home_content)
-
-    # Create About view
-    about_content = """<template>
-  <div class="text-center">
-    <h1 class="text-4xl font-bold mb-8">About</h1>
-    <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-      This is a Vue 3 project with TypeScript, created using Vite. It includes Vue Router for navigation,
-      Pinia for state management, and Tailwind CSS for styling.
-    </p>
-    <p class="text-2xl font-bold mt-8">Initialized by <span class="text-purple-600">Scripty</span></p>
-  </div>
-</template>"""
-
-    with open(os.path.join(full_path, 'src', 'views', 'AboutView.vue'), 'w') as f:
-        f.write(about_content)
-
-    # Update router
-    router_content = """import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
-import AboutView from '../views/AboutView.vue'
-
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: HomeView
-    },
-    {
-      path: '/about',
-      name: 'about',
-      component: AboutView
-    }
-  ]
-})
-
-export default router"""
-
-    os.makedirs(os.path.join(full_path, 'src', 'router'), exist_ok=True)
-    with open(os.path.join(full_path, 'src', 'router', 'index.ts'), 'w') as f:
-        f.write(router_content)
-
-    # Create main store with Pinia
-    store_content = """import { defineStore } from 'pinia'
-
-export const useMainStore = defineStore('main', {
-  state: () => ({
-    count: 0,
-    name: 'Vue 3 + TypeScript'
-  }),
-  getters: {
-    doubleCount: (state) => state.count * 2,
-  },
-  actions: {
-    increment() {
-      this.count++
-    }
-  }
-})"""
-
-    os.makedirs(os.path.join(full_path, 'src', 'stores'), exist_ok=True)
-    with open(os.path.join(full_path, 'src', 'stores', 'main.ts'), 'w') as f:
-        f.write(store_content)
-
-    # Update main.ts
-    main_content = """import './style.css'
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import App from './App.vue'
-import router from './router'
-
-const app = createApp(App)
-
-app.use(createPinia())
-app.use(router)
-
-app.mount('#app')"""
-
-    with open(os.path.join(full_path, 'src', 'main.ts'), 'w') as f:
-        f.write(main_content)
-
-    # Update style.css
-    style_content = """@tailwind base;
-@tailwind components;
-@tailwind utilities;"""
-
-    with open(os.path.join(full_path, 'src', 'style.css'), 'w') as f:
-        f.write(style_content)
-
-    return True
-
-def setup_sveltekit(path, folder_name):
-    full_path = os.path.join(path, folder_name)
+class SvelteKitBuilder(ProjectBuilder):
+    """Handles SvelteKit project setup"""
     
-    print(f"Creating SvelteKit + TypeScript project in: {full_path}")
-    
-    commands = [
-        f"npm create vite@latest {folder_name} -- --template svelte-ts --force",
-        "npm install",
-        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
-        "npx tailwindcss init -p"
-    ]
-    
-    for cmd in commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=path if cmd == commands[0] else full_path):
-            return False
-
-    # Create Tailwind config
-    tailwind_config = """/** @type {import('tailwindcss').Config} */
-export default {
-  content: ['./src/**/*.{html,js,svelte,ts}'],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-}"""
-
-    with open(os.path.join(full_path, 'tailwind.config.js'), 'w') as f:
-        f.write(tailwind_config)
-
-    # Update style.css with Tailwind
-    css_content = """@tailwind base;
-@tailwind components;
-@tailwind utilities;"""
-
-    with open(os.path.join(full_path, 'src', 'style.css'), 'w') as f:
-        f.write(css_content)
-
-    # Update App.svelte
-    app_content = """<script lang="ts">
+    def _prepare_environment(self) -> None:
+        run_command(f"npm create vite@latest {self.name} -- --template svelte-ts --force", self.path)
+        
+    def _install_dependencies(self) -> None:
+        commands = [
+            "npm install",
+            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14"
+        ]
+        for cmd in commands:
+            run_command(cmd, self.full_path)
+            
+    def _configure_project(self) -> None:
+        self._setup_tailwind()
+        
+        # Configure Svelte app
+        app_content = """<script lang="ts">
   import './style.css'
   import svelteLogo from './assets/svelte.svg'
   import viteLogo from '/vite.svg'
-  import Counter from './lib/Counter.svelte'
 </script>
 
 <main class="min-h-screen flex flex-col items-center justify-center p-8 text-center">
   <div class="flex justify-center gap-8 mb-8">
     <a 
-      href="https://vite.dev" 
+      href="https://vitejs.dev" 
       target="_blank" 
       rel="noreferrer"
       class="transition-transform hover:scale-110"
     >
       <img 
         src={viteLogo} 
-        class="h-24 w-24 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#646cffaa]" 
+        class="h-24 w-24 p-6 transition-all duration-300" 
         alt="Vite Logo" 
       />
     </a>
@@ -1335,7 +213,7 @@ export default {
     >
       <img 
         src={svelteLogo} 
-        class="h-24 w-24 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#ff3e00aa]" 
+        class="h-24 w-24 p-6 transition-all duration-300" 
         alt="Svelte Logo" 
       />
     </a>
@@ -1343,109 +221,67 @@ export default {
 
   <h1 class="text-4xl font-bold mb-8">
     Vite + Svelte initialized by 
-      <span class="text-purple-500">Scripty</span>
+    <span class="text-purple-500">Scripty</span>
   </h1>
 
   <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-    <Counter />
+    <p class="text-gray-600">
+      Edit <code class="bg-gray-100 px-2 py-1 rounded">src/App.svelte</code> to get started
+    </p>
   </div>
-
-  <p class="mb-4">
-    Check out 
-    <a 
-      href="https://github.com/sveltejs/kit#readme" 
-      target="_blank" 
-      rel="noreferrer"
-      class="text-blue-600 hover:text-blue-800 underline"
-    >
-      SvelteKit
-    </a>
-    , the official Svelte app framework powered by Vite!
-  </p>
-
-  <p class="text-gray-500">
-    Click on the Vite and Svelte logos to learn more
-  </p>
 </main>"""
+        
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'App.svelte'),
+            app_content
+        )
 
-    with open(os.path.join(full_path, 'src', 'App.svelte'), 'w') as f:
-        f.write(app_content)
-
-    return True
-
-def setup_vite(path, folder_name):
-    full_path = os.path.join(path, folder_name)
+class ProjectFactory:
+    """Factory for creating different types of projects"""
     
-    print(f"Creating Vite project in: {full_path}")
-    commands = [
-        f"npm create vite@latest {folder_name} -- --template react-ts --force",
-        "npm install",
-        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14"
-    ]
-    
-    for cmd in commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=path if cmd == commands[0] else full_path):
-            return False
-
-    create_tailwind_config(full_path)
-    create_postcss_config(full_path)
-    modify_css(full_path)
-    update_app_tsx(full_path)
-    return True
-
-def setup_environment(path, folder_name, template):
-    setup_functions = {
-        "vite-react-ts": setup_vite,
-        "next-ts": setup_nextjs,
-        "express-ts": setup_express_ts,
-        "mern": setup_mern,
-        "flask-ts": setup_flask_ts,
-        "fastapi-react": setup_fastapi_react,
-        "vue": setup_vue,
-        "sveltekit-ts": setup_sveltekit,
+    _builders = {
+        'vite-react-ts': ViteReactBuilder,
+        'next-ts': NextJSBuilder,
+        'express-ts': ExpressBuilder,
+        'mern': MERNBuilder,
+        'flask-ts': FlaskBuilder,
+        'fastapi-react': FastAPIBuilder,
+        'vue': VueBuilder,
+        'sveltekit-ts': SvelteKitBuilder
     }
     
-    if template not in setup_functions:
-        print(f"Unknown template: {template}")
-        return False
-        
-    return setup_functions[template](path, folder_name)
+    @classmethod
+    def create_project(cls, template: str, path: str, name: str) -> bool:
+        builder_class = cls._builders.get(template)
+        if not builder_class:
+            raise ValueError(f"Unknown template: {template}")
+            
+        builder = builder_class(path, name)
+        return builder.create_project()
 
-async def func(args):
-    """
-    Main function to handle project initialization requests.
-    Args should contain:
-        - path (optional): Where to create the project
-        - folder_name: Name of the project folder
-        - template: Type of project to create
-    """
+async def func(args: Dict[str, Any]) -> str:
+    """Main function to handle project initialization"""
     try:
         path = args.get("path", ".")
         folder_name = args.get("folder_name")
         template = args.get("template")
         
-        if not folder_name:
-            return json.dumps({"error": "Folder name is required"})
+        if not folder_name or not template:
+            return json.dumps({"error": "Both folder_name and template are required"})
             
-        if not template:
-            return json.dumps({"error": "Template type is required"})
-            
-        if setup_environment(path, folder_name, template):
+        success = ProjectFactory.create_project(template, path, folder_name)
+        
+        if success:
             return json.dumps({
                 "message": f"Successfully created {template} project in {folder_name}",
                 "details": {
                     "path": os.path.abspath(os.path.join(path, folder_name)),
                     "template": template,
-                    "next_steps": [
-                        "cd " + folder_name,
-                        "npm install",
-                        "npm run dev"
-                    ]
+                    "next_steps": ["cd " + folder_name, "npm install", "npm run dev"]
                 }
             })
-        else:
-            return json.dumps({"error": "Project setup failed"})
+            
+        return json.dumps({"error": "Project setup failed"})
             
     except Exception as e:
         return json.dumps({"error": str(e)})
@@ -1453,31 +289,569 @@ async def func(args):
 # Object description for Scripty
 object = {
     "name": "environment_initiator",
-    "description": "Initialize different types of development environments with common configurations and best practices. Creates fully configured projects with TypeScript, TailwindCSS, and other modern tools.",
+    "description": "Initialize development environments with modern configurations",
     "parameters": {
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Path where the project should be created (defaults to current directory)"
+                "description": "Project creation path (defaults to current directory)"
             },
             "folder_name": {
                 "type": "string",
-                "description": "Name of the project folder"
+                "description": "Project folder name"
             },
             "template": {
                 "type": "string",
-                "enum": [
-                    "vite-react-ts",
-                    "next-ts", 
-                    "express-ts",
-                    "mern",
-                    "flask-ts",
-                    "fastapi-react",
-                    "vue",
-                    "sveltekit-ts"
-                ],
-                "description": "Type of project template to initialize"
+                "enum": ["vite-react-ts", "next-ts", "express-ts", "mern", 
+                        "flask-ts", "fastapi-react", "vue", "sveltekit-ts"],
+                "description": "Project template type"
+            }
+        },
+        "required": ["folder_name", "template"]
+    }
+}
+            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14"
+        ]
+        for cmd in commands:
+            run_command(cmd, self.full_path)
+            
+    def _configure_project(self) -> None:
+        self._setup_tailwind()
+        # Add Scripty branding in App.tsx
+        app_content = """import { useState } from 'react'
+import reactLogo from './assets/react.svg'
+import viteLogo from '/vite.svg'
+
+function App() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <div className="flex gap-8 mb-8">
+        <a href="https://vite.dev" target="_blank" className="hover:scale-110 transition-transform">
+          <img src={viteLogo} className="h-32 w-32" alt="Vite logo" />
+        </a>
+        <a href="https://react.dev" target="_blank" className="hover:scale-110 transition-transform">
+          <img src={reactLogo} className="h-32 w-32 animate-spin-slow" alt="React logo" />
+        </a>
+      </div>
+      
+      <h1 className="text-4xl font-bold mb-8">
+        Vite + React initialized by{' '}
+        <span className="text-purple-600">Scripty</span>
+      </h1>
+      
+      <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <p className="text-gray-600">
+          Edit <code className="bg-gray-100 px-2 py-1 rounded">src/App.tsx</code> and save to test HMR
+        </p>
+      </div>
+    </div>
+  )
+}
+
+export default App"""
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'App.tsx'),
+            app_content
+        )
+
+class NextJSBuilder(ProjectBuilder):
+    """Handles Next.js project setup"""
+    
+    def _prepare_environment(self) -> None:
+        create_command = f"npx create-next-app@latest {self.name} --ts --tailwind --eslint --app --src-dir --import-alias '@/*' -y --no-turbopack --use-npm --yes"
+        run_command(create_command, self.path)
+        
+    def _install_dependencies(self) -> None:
+        # Next.js handles dependencies in _prepare_environment
+        pass
+            
+    def _configure_project(self) -> None:
+        page_content = """import Image from 'next/image'
+
+export default function Home() {
+  return (
+    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <div className="flex gap-8 mb-8">
+        <div className="hover:scale-110 transition-transform">
+          <Image
+            src="/next.svg"
+            alt="Next.js Logo"
+            width={180}
+            height={37}
+            priority
+          />
+        </div>
+      </div>
+      
+      <h1 className="text-4xl font-bold mb-8">
+        Next.js project initialized by{' '}
+        <span className="text-purple-600">Scripty</span>
+      </h1>
+      
+      <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <p className="text-gray-600">
+          Edit <code className="bg-gray-100 px-2 py-1 rounded">src/app/page.tsx</code> to get started
+        </p>
+      </div>
+    </main>
+  )
+}"""
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'app', 'page.tsx'),
+            page_content
+        )
+
+class ExpressBuilder(ProjectBuilder):
+    """Handles Express.js project setup"""
+    
+    def _prepare_environment(self) -> None:
+        os.makedirs(self.full_path, exist_ok=True)
+        
+    def _install_dependencies(self) -> None:
+        commands = [
+            "npm install express cors dotenv",
+            "npm install -D typescript @types/node @types/express @types/cors ts-node nodemon",
+            "npx tsc --init"
+        ]
+        for cmd in commands:
+            run_command(cmd, self.full_path)
+            
+    def _configure_project(self) -> None:
+        # Create package.json
+        package_json = {
+            "name": self.name,
+            "version": "1.0.0",
+            "description": "Express.js + TypeScript API initialized by Scripty",
+            "main": "dist/index.js",
+            "scripts": {
+                "dev": "nodemon",
+                "build": "tsc",
+                "start": "node dist/index.js"
+            }
+        }
+        FileManager.write_json(
+            os.path.join(self.full_path, 'package.json'),
+            package_json
+        )
+        
+        # Create source files
+        src_content = """import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+dotenv.config();
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+
+app.get('/api/hello', (req, res) => {
+    res.json({
+        message: 'Hello from Express + TypeScript!',
+        info: 'This API was initialized by Scripty'
+    });
+});
+
+app.listen(port, () => {
+    console.log(`[server]: Running at http://localhost:${port}`);
+});"""
+        
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'index.ts'),
+            src_content
+        )
+
+class MERNBuilder(ProjectBuilder):
+    """Handles MERN stack project setup"""
+    
+    def _prepare_environment(self) -> None:
+        os.makedirs(os.path.join(self.full_path, 'frontend'), exist_ok=True)
+        os.makedirs(os.path.join(self.full_path, 'backend'), exist_ok=True)
+        
+    def _install_dependencies(self) -> None:
+        # Backend dependencies
+        backend_commands = [
+            "npm install express cors dotenv mongoose",
+            "npm install -D typescript @types/node @types/express @types/cors ts-node nodemon"
+        ]
+        for cmd in backend_commands:
+            run_command(cmd, os.path.join(self.full_path, 'backend'))
+            
+        # Frontend dependencies
+        frontend_commands = [
+            "npm create vite@latest . -- --template react-ts --force",
+            "npm install",
+            "npm install axios @tanstack/react-query"
+        ]
+        for cmd in frontend_commands:
+            run_command(cmd, os.path.join(self.full_path, 'frontend'))
+            
+    def _configure_project(self) -> None:
+        # Configure backend
+        backend_index = """import express from 'express';
+import cors from 'cors';
+import mongoose from 'mongoose';
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.get('/api/health', (_, res) => {
+    res.json({ status: 'ok', message: 'MERN Stack API initialized by Scripty' });
+});
+
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost/mern-app')
+    .then(() => {
+        app.listen(5000, () => console.log('Server running on port 5000'));
+    });"""
+        
+        FileManager.write_file(
+            os.path.join(self.full_path, 'backend', 'src', 'index.ts'),
+            backend_index
+        )
+        
+        # Configure frontend
+        self._setup_tailwind()
+
+class FlaskBuilder(ProjectBuilder):
+    """Handles Flask project setup"""
+    
+    def _prepare_environment(self) -> None:
+        os.makedirs(os.path.join(self.full_path, 'backend'), exist_ok=True)
+        os.makedirs(os.path.join(self.full_path, 'frontend'), exist_ok=True)
+        
+    def _install_dependencies(self) -> None:
+        # Setup frontend
+        frontend_commands = [
+            "npm create vite@latest . -- --template react-ts --force",
+            "npm install",
+            "npm install -D tailwindcss postcss autoprefixer"
+        ]
+        for cmd in frontend_commands:
+            run_command(cmd, os.path.join(self.full_path, 'frontend'))
+            
+    def _configure_project(self) -> None:
+        # Create Flask backend
+        app_content = """from flask import Flask
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+@app.route('/api/hello')
+def hello():
+    return {'message': 'Flask backend initialized by Scripty'}
+
+if __name__ == '__main__':
+    app.run(debug=True)"""
+            
+        FileManager.write_file(
+            os.path.join(self.full_path, 'backend', 'app.py'),
+            app_content
+        )
+        
+        # Configure frontend
+        self._setup_tailwind()
+
+class FastAPIBuilder(ProjectBuilder):
+    """Handles FastAPI project setup"""
+    
+    def _prepare_environment(self) -> None:
+        os.makedirs(os.path.join(self.full_path, 'backend'), exist_ok=True)
+        os.makedirs(os.path.join(self.full_path, 'frontend'), exist_ok=True)
+        
+    def _install_dependencies(self) -> None:
+        # Setup frontend
+        frontend_commands = [
+            "npm create vite@latest . -- --template react-ts --force",
+            "npm install",
+            "npm install -D tailwindcss postcss autoprefixer",
+            "npm install @tanstack/react-query axios"
+        ]
+        for cmd in frontend_commands:
+            run_command(cmd, os.path.join(self.full_path, 'frontend'))
+            
+    def _configure_project(self) -> None:
+        # Create FastAPI backend
+        main_content = """from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/api/hello")
+async def hello():
+    return {"message": "FastAPI backend initialized by Scripty"}"""
+            
+        FileManager.write_file(
+            os.path.join(self.full_path, 'backend', 'main.py'),
+            main_content
+        )
+        
+        # Configure frontend
+        self._setup_tailwind()
+
+class VueBuilder(ProjectBuilder):
+    """Handles Vue.js project setup"""
+    
+    def _prepare_environment(self) -> None:
+        run_command(f"npm create vite@latest {self.name} -- --template vue-ts --force", self.path)
+        
+    def _install_dependencies(self) -> None:
+        commands = [
+            "npm install",
+            "npm install vue-router@4 pinia @vueuse/core",
+            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14"
+        ]
+        for cmd in commands:
+            run_command(cmd, self.full_path)
+            
+    def _configure_project(self) -> None:
+        self._setup_tailwind()
+        
+        # Configure Vue app
+        app_content = """<script setup lang="ts">
+import { RouterLink, RouterView } from 'vue-router'
+</script>
+
+<template>
+  <div class="min-h-screen bg-gray-50">
+    <header class="bg-white shadow">
+      <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex">
+            <div class="flex-shrink-0 flex items-center">
+              <span class="text-2xl font-bold text-emerald-600">Vue 3</span>
+            </div>
+            <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+              <RouterLink to="/" class="text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 border-emerald-500 text-sm font-medium">
+                Home
+              </RouterLink>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+          <h1 class="text-4xl font-bold mb-8">
+            Vue 3 + TypeScript initialized by{' '}
+            <span class="text-purple-600">Scripty</span>
+          </h1>
+          <RouterView />
+        </div>
+      </div>
+    </main>
+  </div>
+</template>"""
+        
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'App.vue'),
+            app_content
+        )
+        
+        # Create router configuration
+        router_content = """import { createRouter, createWebHistory } from 'vue-router'
+import HomeView from '../views/HomeView.vue'
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/',
+      name: 'home',
+      component: HomeView
+    }
+  ]
+})
+
+export default router"""
+        
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'router', 'index.ts'),
+            router_content
+        )
+        
+        # Create home view
+        home_content = """<script setup lang="ts">
+import { ref } from 'vue'
+
+const count = ref(0)
+</script>
+
+<template>
+  <div class="text-center">
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+      <p class="text-gray-600 mb-4">
+        Edit <code class="bg-gray-100 px-2 py-1 rounded">src/views/HomeView.vue</code> to test HMR
+      </p>
+
+      <button
+        type="button"
+        class="px-4 py-2 font-semibold text-sm bg-emerald-500 text-white rounded-md shadow-sm hover:bg-emerald-600"
+        @click="count++"
+      >
+        Count is: {{ count }}
+      </button>
+    </div>
+  </div>
+</template>"""
+        
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'views', 'HomeView.vue'),
+            home_content
+        )
+
+class SvelteKitBuilder(ProjectBuilder):
+    """Handles SvelteKit project setup"""
+    
+    def _prepare_environment(self) -> None:
+        run_command(f"npm create vite@latest {self.name} -- --template svelte-ts --force", self.path)
+        
+    def _install_dependencies(self) -> None:
+        commands = [
+            "npm install",
+            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14"
+        ]
+        for cmd in commands:
+            run_command(cmd, self.full_path)
+            
+    def _configure_project(self) -> None:
+        self._setup_tailwind()
+        
+        # Configure Svelte app
+        app_content = """<script lang="ts">
+  import './style.css'
+  import svelteLogo from './assets/svelte.svg'
+  import viteLogo from '/vite.svg'
+</script>
+
+<main class="min-h-screen flex flex-col items-center justify-center p-8 text-center">
+  <div class="flex justify-center gap-8 mb-8">
+    <a 
+      href="https://vitejs.dev" 
+      target="_blank" 
+      rel="noreferrer"
+      class="transition-transform hover:scale-110"
+    >
+      <img 
+        src={viteLogo} 
+        class="h-24 w-24 p-6 transition-all duration-300" 
+        alt="Vite Logo" 
+      />
+    </a>
+    <a 
+      href="https://svelte.dev" 
+      target="_blank" 
+      rel="noreferrer"
+      class="transition-transform hover:scale-110"
+    >
+      <img 
+        src={svelteLogo} 
+        class="h-24 w-24 p-6 transition-all duration-300" 
+        alt="Svelte Logo" 
+      />
+    </a>
+  </div>
+
+  <h1 class="text-4xl font-bold mb-8">
+    Vite + Svelte initialized by 
+    <span class="text-purple-500">Scripty</span>
+  </h1>
+
+  <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+    <p class="text-gray-600">
+      Edit <code class="bg-gray-100 px-2 py-1 rounded">src/App.svelte</code> to get started
+    </p>
+  </div>
+</main>"""
+        
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'App.svelte'),
+            app_content
+        )
+
+class ProjectFactory:
+    """Factory for creating different types of projects"""
+    
+    _builders = {
+        'vite-react-ts': ViteReactBuilder,
+        'next-ts': NextJSBuilder,
+        'express-ts': ExpressBuilder,
+        'mern': MERNBuilder,
+        'flask-ts': FlaskBuilder,
+        'fastapi-react': FastAPIBuilder,
+        'vue': VueBuilder,
+        'sveltekit-ts': SvelteKitBuilder
+    }
+    
+    @classmethod
+    def create_project(cls, template: str, path: str, name: str) -> bool:
+        builder_class = cls._builders.get(template)
+        if not builder_class:
+            raise ValueError(f"Unknown template: {template}")
+            
+        builder = builder_class(path, name)
+        return builder.create_project()
+
+async def func(args: Dict[str, Any]) -> str:
+    """Main function to handle project initialization"""
+    try:
+        path = args.get("path", ".")
+        folder_name = args.get("folder_name")
+        template = args.get("template")
+        
+        if not folder_name or not template:
+            return json.dumps({"error": "Both folder_name and template are required"})
+            
+        success = ProjectFactory.create_project(template, path, folder_name)
+        
+        if success:
+            return json.dumps({
+                "message": f"Successfully created {template} project in {folder_name}",
+                "details": {
+                    "path": os.path.abspath(os.path.join(path, folder_name)),
+                    "template": template,
+                    "next_steps": ["cd " + folder_name, "npm install", "npm run dev"]
+                }
+            })
+            
+        return json.dumps({"error": "Project setup failed"})
+            
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+# Object description for Scripty
+object = {
+    "name": "environment_initiator",
+    "description": "Initialize development environments with modern configurations",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Project creation path (defaults to current directory)"
+            },
+            "folder_name": {
+                "type": "string",
+                "description": "Project folder name"
+            },
+            "template": {
+                "type": "string",
+                "enum": ["vite-react-ts", "next-ts", "express-ts", "mern", 
+                        "flask-ts", "fastapi-react", "vue", "sveltekit-ts"],
+                "description": "Project template type"
             }
         },
         "required": ["folder_name", "template"]

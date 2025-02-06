@@ -1483,6 +1483,3 @@ object = {
         "required": ["folder_name", "template"]
     }
 }
-
-# Required modules
-modules = ['subprocess', 'os', 'sys', 'json']

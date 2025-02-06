@@ -116,201 +116,6 @@ class ViteReactBuilder(ProjectBuilder):
     def _install_dependencies(self) -> None:
         commands = [
             "npm install",
-            "npm install vue-router@4 pinia @vueuse/core",
-            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14"
-        ]
-        for cmd in commands:
-            run_command(cmd, self.full_path)
-            
-    def _configure_project(self) -> None:
-        self._setup_tailwind()
-        
-        # Configure Vue app
-        app_content = """<script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-</script>
-
-<template>
-  <div class="min-h-screen bg-gray-50">
-    <header class="bg-white shadow">
-      <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-          <div class="flex">
-            <div class="flex-shrink-0 flex items-center">
-              <span class="text-2xl font-bold text-emerald-600">Vue 3</span>
-            </div>
-            <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <RouterLink to="/" class="text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 border-emerald-500 text-sm font-medium">
-                Home
-              </RouterLink>
-              <RouterLink to="/about" class="text-gray-500 hover:text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 border-transparent hover:border-gray-300 text-sm font-medium">
-                About
-              </RouterLink>
-            </div>
-          </div>
-        </div>
-      </nav>
-    </header>
-
-    <main>
-      <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div class="px-4 py-6 sm:px-0">
-          <RouterView />
-        </div>
-      </div>
-    </main>
-  </div>
-</template>"""
-        
-        FileManager.write_file(
-            os.path.join(self.full_path, 'src', 'App.vue'),
-            app_content
-        )
-
-class SvelteKitBuilder(ProjectBuilder):
-    """Handles SvelteKit project setup"""
-    
-    def _prepare_environment(self) -> None:
-        run_command(f"npm create vite@latest {self.name} -- --template svelte-ts --force", self.path)
-        
-    def _install_dependencies(self) -> None:
-        commands = [
-            "npm install",
-            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14"
-        ]
-        for cmd in commands:
-            run_command(cmd, self.full_path)
-            
-    def _configure_project(self) -> None:
-        self._setup_tailwind()
-        
-        # Configure Svelte app
-        app_content = """<script lang="ts">
-  import './style.css'
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from '/vite.svg'
-</script>
-
-<main class="min-h-screen flex flex-col items-center justify-center p-8 text-center">
-  <div class="flex justify-center gap-8 mb-8">
-    <a 
-      href="https://vitejs.dev" 
-      target="_blank" 
-      rel="noreferrer"
-      class="transition-transform hover:scale-110"
-    >
-      <img 
-        src={viteLogo} 
-        class="h-24 w-24 p-6 transition-all duration-300" 
-        alt="Vite Logo" 
-      />
-    </a>
-    <a 
-      href="https://svelte.dev" 
-      target="_blank" 
-      rel="noreferrer"
-      class="transition-transform hover:scale-110"
-    >
-      <img 
-        src={svelteLogo} 
-        class="h-24 w-24 p-6 transition-all duration-300" 
-        alt="Svelte Logo" 
-      />
-    </a>
-  </div>
-
-  <h1 class="text-4xl font-bold mb-8">
-    Vite + Svelte initialized by 
-    <span class="text-purple-500">Scripty</span>
-  </h1>
-
-  <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-    <p class="text-gray-600">
-      Edit <code class="bg-gray-100 px-2 py-1 rounded">src/App.svelte</code> to get started
-    </p>
-  </div>
-</main>"""
-        
-        FileManager.write_file(
-            os.path.join(self.full_path, 'src', 'App.svelte'),
-            app_content
-        )
-
-class ProjectFactory:
-    """Factory for creating different types of projects"""
-    
-    _builders = {
-        'vite-react-ts': ViteReactBuilder,
-        'next-ts': NextJSBuilder,
-        'express-ts': ExpressBuilder,
-        'mern': MERNBuilder,
-        'flask-ts': FlaskBuilder,
-        'fastapi-react': FastAPIBuilder,
-        'vue': VueBuilder,
-        'sveltekit-ts': SvelteKitBuilder
-    }
-    
-    @classmethod
-    def create_project(cls, template: str, path: str, name: str) -> bool:
-        builder_class = cls._builders.get(template)
-        if not builder_class:
-            raise ValueError(f"Unknown template: {template}")
-            
-        builder = builder_class(path, name)
-        return builder.create_project()
-
-async def func(args: Dict[str, Any]) -> str:
-    """Main function to handle project initialization"""
-    try:
-        path = args.get("path", ".")
-        folder_name = args.get("folder_name")
-        template = args.get("template")
-        
-        if not folder_name or not template:
-            return json.dumps({"error": "Both folder_name and template are required"})
-            
-        success = ProjectFactory.create_project(template, path, folder_name)
-        
-        if success:
-            return json.dumps({
-                "message": f"Successfully created {template} project in {folder_name}",
-                "details": {
-                    "path": os.path.abspath(os.path.join(path, folder_name)),
-                    "template": template,
-                    "next_steps": ["cd " + folder_name, "npm install", "npm run dev"]
-                }
-            })
-            
-        return json.dumps({"error": "Project setup failed"})
-            
-    except Exception as e:
-        return json.dumps({"error": str(e)})
-
-# Object description for Scripty
-object = {
-    "name": "environment_initiator",
-    "description": "Initialize development environments with modern configurations",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Project creation path (defaults to current directory)"
-            },
-            "folder_name": {
-                "type": "string",
-                "description": "Project folder name"
-            },
-            "template": {
-                "type": "string",
-                "enum": ["vite-react-ts", "next-ts", "express-ts", "mern", 
-                        "flask-ts", "fastapi-react", "vue", "sveltekit-ts"],
-                "description": "Project template type"
-            }
-        },
-        "required": ["folder_name", "template"]
-    }
-}
             "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14"
         ]
         for cmd in commands:
@@ -618,7 +423,7 @@ class VueBuilder(ProjectBuilder):
     def _configure_project(self) -> None:
         self._setup_tailwind()
         
-        # Configure Vue app
+        # Create main App.vue
         app_content = """<script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
 </script>
@@ -644,13 +449,7 @@ import { RouterLink, RouterView } from 'vue-router'
 
     <main>
       <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div class="px-4 py-6 sm:px-0">
-          <h1 class="text-4xl font-bold mb-8">
-            Vue 3 + TypeScript initialized by{' '}
-            <span class="text-purple-600">Scripty</span>
-          </h1>
-          <RouterView />
-        </div>
+        <RouterView />
       </div>
     </main>
   </div>
@@ -661,7 +460,7 @@ import { RouterLink, RouterView } from 'vue-router'
             app_content
         )
         
-        # Create router configuration
+        # Create router setup
         router_content = """import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 
@@ -678,6 +477,7 @@ const router = createRouter({
 
 export default router"""
         
+        os.makedirs(os.path.join(self.full_path, 'src', 'router'), exist_ok=True)
         FileManager.write_file(
             os.path.join(self.full_path, 'src', 'router', 'index.ts'),
             router_content
@@ -692,6 +492,11 @@ const count = ref(0)
 
 <template>
   <div class="text-center">
+    <h1 class="text-4xl font-bold mb-8">
+      Vue 3 + TypeScript initialized by{' '}
+      <span class="text-purple-600">Scripty</span>
+    </h1>
+    
     <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
       <p class="text-gray-600 mb-4">
         Edit <code class="bg-gray-100 px-2 py-1 rounded">src/views/HomeView.vue</code> to test HMR
@@ -708,11 +513,31 @@ const count = ref(0)
   </div>
 </template>"""
         
+        os.makedirs(os.path.join(self.full_path, 'src', 'views'), exist_ok=True)
         FileManager.write_file(
             os.path.join(self.full_path, 'src', 'views', 'HomeView.vue'),
             home_content
         )
+        
+        # Update main.ts
+        main_content = """import './style.css'
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import App from './App.vue'
+import router from './router'
 
+const app = createApp(App)
+
+app.use(createPinia())
+app.use(router)
+
+app.mount('#app')"""
+        
+        FileManager.write_file(
+            os.path.join(self.full_path, 'src', 'main.ts'),
+            main_content
+        )
+        
 class SvelteKitBuilder(ProjectBuilder):
     """Handles SvelteKit project setup"""
     
@@ -730,7 +555,6 @@ class SvelteKitBuilder(ProjectBuilder):
     def _configure_project(self) -> None:
         self._setup_tailwind()
         
-        # Configure Svelte app
         app_content = """<script lang="ts">
   import './style.css'
   import svelteLogo from './assets/svelte.svg'
@@ -766,8 +590,8 @@ class SvelteKitBuilder(ProjectBuilder):
   </div>
 
   <h1 class="text-4xl font-bold mb-8">
-    Vite + Svelte initialized by 
-    <span class="text-purple-500">Scripty</span>
+    Svelte + TypeScript initialized by{' '}
+    <span class="text-purple-600">Scripty</span>
   </h1>
 
   <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
@@ -832,28 +656,37 @@ async def func(args: Dict[str, Any]) -> str:
     except Exception as e:
         return json.dumps({"error": str(e)})
 
-# Object description for Scripty
 object = {
     "name": "environment_initiator",
-    "description": "Initialize development environments with modern configurations",
+    "description": "Initialize development environments with modern configurations. Creates fully configured projects with TypeScript, TailwindCSS, and other modern tools.",
     "parameters": {
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Project creation path (defaults to current directory)"
+                "description": "Path where the project should be created (defaults to current directory)"
             },
             "folder_name": {
                 "type": "string",
-                "description": "Project folder name"
+                "description": "Name of the project folder"
             },
             "template": {
                 "type": "string",
-                "enum": ["vite-react-ts", "next-ts", "express-ts", "mern", 
-                        "flask-ts", "fastapi-react", "vue", "sveltekit-ts"],
-                "description": "Project template type"
+                "enum": [
+                    "vite-react-ts",
+                    "next-ts", 
+                    "express-ts",
+                    "mern",
+                    "flask-ts",
+                    "fastapi-react",
+                    "vue",
+                    "sveltekit-ts"
+                ],
+                "description": "Type of project template to initialize"
             }
         },
         "required": ["folder_name", "template"]
     }
 }
+
+modules = []

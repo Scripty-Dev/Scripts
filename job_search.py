@@ -1,5 +1,3 @@
-from jobspy import scrape_jobs
-import pandas as pd
 from datetime import datetime
 import os
 import hashlib
@@ -170,35 +168,9 @@ def search_jobs(job_title, location, authtoken=None):
             "error": str(e)
         }
 
-# API definition
-object = {
-    "name": "job_search",
-    "description": "Search for jobs across multiple platforms and save results to CSV and Google Sheets",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "job_title": {
-                "type": "string",
-                "description": "Job title to search for (e.g., 'software engineer', 'data scientist')"
-            },
-            "location": {
-                "type": "string",
-                "description": "Location to search in (e.g., 'Toronto, ON', 'San Francisco, CA')"
-            },
-            "export_to_sheets": {
-                "type": "boolean",
-                "description": "Whether to export results to Google Sheets (requires Google authentication)",
-                "default": True
-            }
-        },
-        "required": ["job_title", "location"]
-    }
-}
-
-# Required modules
-modules = ['python-jobspy', 'pandas', 'requests']
-
 async def func(args):
+    from jobspy import scrape_jobs
+    import pandas as pd
     """Handler function for the API"""
     try:
         if not args.get("job_title"):
@@ -231,9 +203,30 @@ async def func(args):
             "success": False,
             "error": str(e)
         })
+# API definition
+object = {
+    "name": "job_search",
+    "description": "Search for jobs across multiple platforms and save results to CSV and Google Sheets",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "job_title": {
+                "type": "string",
+                "description": "Job title to search for (e.g., 'software engineer', 'data scientist')"
+            },
+            "location": {
+                "type": "string",
+                "description": "Location to search in (e.g., 'Toronto, ON', 'San Francisco, CA')"
+            },
+            "export_to_sheets": {
+                "type": "boolean",
+                "description": "Whether to export results to Google Sheets (requires Google authentication)",
+                "default": True
+            }
+        },
+        "required": ["job_title", "location"]
+    }
+}
 
-if __name__ == "__main__":
-    # Example usage
-    result = search_jobs("software engineer", "Toronto, ON")
-    print(f"\nFound {result['jobs_found']} jobs")
-    print(f"Results saved to: {result['save_location']}")
+# Required modules
+modules = ['python-jobspy', 'pandas', 'requests']

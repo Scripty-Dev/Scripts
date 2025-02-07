@@ -1,9 +1,10 @@
+from jobspy import scrape_jobs
+import pandas as pd
 from datetime import datetime
 import os
 import hashlib
 import json
 from pathlib import Path
-import re
 import requests
 
 def get_base_directory():
@@ -68,17 +69,14 @@ def export_to_sheets(jobs_data, authtoken):
 def search_jobs(job_title, location, authtoken=None):
     """Main function to search for jobs"""
     try:
-        # Create timestamped directory in user's home folder
         timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         base_dir = get_base_directory()
         search_dir = os.path.join(base_dir, f"search_{timestamp}")
         os.makedirs(search_dir, exist_ok=True)
 
-        # Extract city and determine country
         city = location.split(',')[0].strip()
         country = "Canada" if "ON" in location.upper() else "USA"
         
-        # Format search term with quotes
         search_term = f'"{job_title}"'
         google_search_term = f"{job_title} jobs in {city}"
 
@@ -90,7 +88,7 @@ def search_jobs(job_title, location, authtoken=None):
             google_search_term=google_search_term,
             country_indeed=country,
             results_wanted=100,
-            hours_old=72,  # Default to 3 days
+            hours_old=72,
             description_format="markdown",
             fetch_full_description=True,
             return_as_df=True,
@@ -98,46 +96,36 @@ def search_jobs(job_title, location, authtoken=None):
             random_headers=True
         )
         
-        # Process jobs
-        filtered_jobs = jobs.copy()
-        filtered_jobs['salary'] = filtered_jobs.apply(format_salary, axis=1)
+        # Convert jobs DataFrame to records and back to ensure numpy arrays are converted
+        jobs_records = jobs.to_dict('records')
+        filtered_jobs = pd.DataFrame(jobs_records)
         
-        # Add application status column
+        # Convert date_posted to string format, handling both datetime and string inputs
+        if 'date_posted' in filtered_jobs.columns:
+            filtered_jobs['date_posted'] = pd.to_datetime(filtered_jobs['date_posted']).dt.strftime('%Y-%m-%d')
+        
+        filtered_jobs['salary'] = filtered_jobs.apply(format_salary, axis=1)
         filtered_jobs['status'] = 'Not Applied'
         
-        # Keep relevant columns
         relevant_columns = [
-            'title',
-            'company',
-            'location',
-            'date_posted',
-            'job_type',
-            'is_remote',
-            'company_industry',
-            'job_url',
-            'salary',
-            'status'
+            'title', 'company', 'location', 'date_posted', 'job_type',
+            'is_remote', 'company_industry', 'job_url', 'salary', 'status'
         ]
         
-        # Keep only columns that exist
         existing_columns = [col for col in relevant_columns if col in filtered_jobs.columns]
         filtered_jobs = filtered_jobs[existing_columns]
         
-        # Remove duplicates
         filtered_jobs = filtered_jobs.drop_duplicates(
             subset=['title', 'company', 'job_url'], 
             keep='first'
         )
         
-        # Sort by date posted
         if 'date_posted' in filtered_jobs.columns:
             filtered_jobs = filtered_jobs.sort_values('date_posted', ascending=False)
         
-        # Save to CSV
         csv_path = os.path.join(search_dir, "jobs.csv")
         filtered_jobs.to_csv(csv_path, index=False)
         
-        # Save metadata
         metadata = {
             'timestamp': timestamp,
             'total_jobs': len(filtered_jobs),
@@ -147,17 +135,18 @@ def search_jobs(job_title, location, authtoken=None):
         }
         with open(os.path.join(search_dir, "metadata.json"), 'w') as f:
             json.dump(metadata, f, indent=2)
+
+        results = filtered_jobs.to_dict('records')
         
         result = {
             "success": True,
             "jobs_found": len(filtered_jobs),
             "save_location": search_dir,
-            "results": filtered_jobs.to_dict('records')
+            "results": results
         }
         
-        # Export to sheets if authtoken provided
         if authtoken:
-            sheets_result = export_to_sheets(result["results"], authtoken)
+            sheets_result = export_to_sheets(results, authtoken)
             result["sheets_export"] = sheets_result
             
         return result
@@ -167,42 +156,6 @@ def search_jobs(job_title, location, authtoken=None):
             "success": False,
             "error": str(e)
         }
-
-async def func(args):
-    from jobspy import scrape_jobs
-    import pandas as pd
-    """Handler function for the API"""
-    try:
-        if not args.get("job_title"):
-            return json.dumps({
-                "success": False,
-                "error": "Job title is required"
-            })
-            
-        if not args.get("location"):
-            return json.dumps({
-                "success": False,
-                "error": "Location is required"
-            })
-            
-        # Get authtoken from context if sheets export requested
-        authtoken = None
-        if args.get("export_to_sheets"):
-            authtoken = args.get("_context", {}).get("authtoken")
-            if not authtoken:
-                return json.dumps({
-                    "success": False,
-                    "error": "Google authentication required for sheets export"
-                })
-            
-        result = search_jobs(args["job_title"], args["location"], authtoken)
-        return json.dumps(result)
-        
-    except Exception as e:
-        return json.dumps({
-            "success": False,
-            "error": str(e)
-        })
 # API definition
 object = {
     "name": "job_search",
@@ -230,3 +183,27 @@ object = {
 
 # Required modules
 modules = ['python-jobspy', 'pandas', 'requests']
+
+async def func(args):
+    """Handler function for the API"""
+    try:
+        if not args.get("job_title"):
+            return json.dumps({
+                "success": False,
+                "error": "Job title is required"
+            })
+            
+        if not args.get("location"):
+            return json.dumps({
+                "success": False,
+                "error": "Location is required"
+            })
+            
+        result = search_jobs(args["job_title"], args["location"], authtoken)
+        return json.dumps(result)
+        
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        })

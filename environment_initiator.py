@@ -1404,6 +1404,7 @@ def setup_environment(path, folder_name, template):
         "fastapi-react": setup_fastapi_react,
         "vue": setup_vue,
         "sveltekit-ts": setup_sveltekit,
+
     }
     
     if template not in setup_functions:
@@ -1412,74 +1413,25 @@ def setup_environment(path, folder_name, template):
         
     return setup_functions[template](path, folder_name)
 
-async def func(args):
-    """
-    Main function to handle project initialization requests.
-    Args should contain:
-        - path (optional): Where to create the project
-        - folder_name: Name of the project folder
-        - template: Type of project to create
-    """
-    try:
-        path = args.get("path", ".")
-        folder_name = args.get("folder_name")
-        template = args.get("template")
-        
-        if not folder_name:
-            return json.dumps({"error": "Folder name is required"})
-            
-        if not template:
-            return json.dumps({"error": "Template type is required"})
-            
-        if setup_environment(path, folder_name, template):
-            return json.dumps({
-                "message": f"Successfully created {template} project in {folder_name}",
-                "details": {
-                    "path": os.path.abspath(os.path.join(path, folder_name)),
-                    "template": template,
-                    "next_steps": [
-                        "cd " + folder_name,
-                        "npm install",
-                        "npm run dev"
-                    ]
-                }
-            })
-        else:
-            return json.dumps({"error": "Project setup failed"})
-            
-    except Exception as e:
-        return json.dumps({"error": str(e)})
-
-# Object description for Scripty
-object = {
-    "name": "environment_initiator",
-    "description": "Initialize different types of development environments with common configurations and best practices. Creates fully configured projects with TypeScript, TailwindCSS, and other modern tools.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path where the project should be created (defaults to current directory)"
-            },
-            "folder_name": {
-                "type": "string",
-                "description": "Name of the project folder"
-            },
-            "template": {
-                "type": "string",
-                "enum": [
-                    "vite-react-ts",
-                    "next-ts", 
-                    "express-ts",
-                    "mern",
-                    "flask-ts",
-                    "fastapi-react",
-                    "vue",
-                    "sveltekit-ts"
-                ],
-                "description": "Type of project template to initialize"
-            }
-        },
-        "required": ["folder_name", "template"]
-    }
-}
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        print("Usage: python script.py <path> <folder_name> <template>")
+        print("Available templates:")
+        print("  - vite-react-ts")
+        print("  - next-ts")
+        print("  - express-ts")
+        print("  - mern")
+        print("  - flask-ts")
+        print("  - fastapi-react")
+        print("  - vue")
+        print("  - slsveltekit-ts")
+        sys.exit(1)
+    
+    path = sys.argv[1]
+    folder_name = sys.argv[2]
+    template = sys.argv[3]
+    
+    if setup_environment(path, folder_name, template):
+        print("Setup completed successfully!")
+    else:
+        print("Setup failed")

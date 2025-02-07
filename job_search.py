@@ -5,7 +5,6 @@ import os
 import hashlib
 import json
 from pathlib import Path
-import re
 import requests
 
 def get_base_directory():
@@ -101,6 +100,10 @@ def search_jobs(job_title, location, authtoken=None):
         jobs_records = jobs.to_dict('records')
         filtered_jobs = pd.DataFrame(jobs_records)
         
+        # Convert date_posted to string format, handling both datetime and string inputs
+        if 'date_posted' in filtered_jobs.columns:
+            filtered_jobs['date_posted'] = pd.to_datetime(filtered_jobs['date_posted']).dt.strftime('%Y-%m-%d')
+        
         filtered_jobs['salary'] = filtered_jobs.apply(format_salary, axis=1)
         filtered_jobs['status'] = 'Not Applied'
         
@@ -132,8 +135,7 @@ def search_jobs(job_title, location, authtoken=None):
         }
         with open(os.path.join(search_dir, "metadata.json"), 'w') as f:
             json.dump(metadata, f, indent=2)
-        
-        # Convert DataFrame to dict records for JSON serialization
+
         results = filtered_jobs.to_dict('records')
         
         result = {
@@ -196,16 +198,6 @@ async def func(args):
                 "success": False,
                 "error": "Location is required"
             })
-            
-        # Get authtoken from context if sheets export requested
-        authtoken = None
-        if args.get("export_to_sheets"):
-            authtoken = args.get("_context", {}).get("authtoken")
-            if not authtoken:
-                return json.dumps({
-                    "success": False,
-                    "error": "Google authentication required for sheets export"
-                })
             
         result = search_jobs(args["job_title"], args["location"], authtoken)
         return json.dumps(result)

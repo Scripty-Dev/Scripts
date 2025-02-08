@@ -7,8 +7,6 @@ import json
 from pathlib import Path
 import requests
 
-authtoken='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI0ZGJjNDkxYi02N2Q0LTRjOGMtOWI4NC1hODZlNGI4ZDFhOTAiLCJpYXQiOjE3MzkwMzYwMjgsImV4cCI6MTczOTEyMjQyOH0.qHQHpageNoaaH0rXuagzPgvEWt5TUkZ76oTVLWYOJbQ'
-
 def get_base_directory():
     """Get the base directory in user's home folder"""
     home = str(Path.home())
@@ -223,16 +221,3 @@ async def func(args):
             "success": False,
             "error": str(e)
         })
-
-if __name__ == "__main__":
-    import asyncio
-    
-    # Test arguments
-    test_args = {
-        "job_title": "Software Engineer",
-        "location": "Toronto, ON"
-    }
-    
-    # Run the async function
-    result = asyncio.run(func(test_args))
-    print(result)

@@ -152,15 +152,21 @@ def search_jobs(job_title, location):
 
         results = filtered_jobs.to_dict('records')
         
+        # Export to sheets and prepare final message
+        sheets_result = export_to_sheets(results, authtoken)
+        sheets_status = "Successfully exported to Google Sheets" if sheets_result.get("success", False) else "Failed to export to Google Sheets"
+        
+        print(f"\nFound {len(filtered_jobs)} jobs")
+        print(f"Results saved to: {csv_path}")
+        print(sheets_status)
+        
         result = {
             "success": True,
             "jobs_found": len(filtered_jobs),
             "save_location": search_dir,
-            "results": results
+            "results": results,
+            "sheets_export": sheets_result
         }
-
-        sheets_result = export_to_sheets(results, authtoken)
-        result["sheets_export"] = sheets_result
             
         return result
         
@@ -199,7 +205,6 @@ modules = ['python-jobspy', 'pandas', 'requests']
 
 async def func(args):
     """Handler function for the API"""
-    print(authtoken)
     try:
         if not args.get("job_title"):
             return json.dumps({

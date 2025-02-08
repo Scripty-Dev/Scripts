@@ -290,6 +290,61 @@ Flask + TypeScript Stack project initialized by Scripty
         
     return True
 
+async def func(args):
+    """Handler function for Flask + React project setup"""
+    try:
+        path = args.get("path", ".")
+        if path == ".":
+            path = os.path.expanduser("~")
+            
+        folder_name = args.get("folder_name")
+        
+        if not folder_name:
+            return json.dumps({
+                "success": False,
+                "error": "Folder name is required"
+            })
+            
+        if setup_flask_ts(path, folder_name):
+            return json.dumps({
+                "success": True,
+                "message": f"Flask + React project created successfully in {folder_name}"
+            })
+        else:
+            return json.dumps({
+                "success": False,
+                "error": "Project setup failed"
+            })
+            
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        })
+
+object = {
+    "name": "flask_setup",
+    "description": "Create a new Flask + React project with TypeScript and TailwindCSS",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Directory path where the project should be created",
+                "default": "."
+            },
+            "folder_name": {
+                "type": "string",
+                "description": "Name of the project folder"
+            }
+        },
+        "required": ["folder_name"]
+    }
+}
+
+# Required modules
+modules = ['subprocess']
+
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: python flask_setup.py <path> <folder_name>")

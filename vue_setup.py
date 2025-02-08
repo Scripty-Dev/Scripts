@@ -1,6 +1,7 @@
 import subprocess
 import os
 import sys
+import json
 
 def run_command(command, cwd=None):
     try:
@@ -260,15 +261,57 @@ app.mount('#app')"""
 
     return True
 
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python vue_setup.py <path> <folder_name>")
-        sys.exit(1)
-    
-    path = sys.argv[1]
-    folder_name = sys.argv[2]
-    
-    if setup_vue(path, folder_name):
-        print("Vue 3 + TypeScript setup completed successfully!")
-    else:
-        print("Setup failed")
+async def func(args):
+    """Handler function for Vue 3 project setup"""
+    try:
+        path = args.get("path", ".")
+        if path == ".":
+            path = os.path.expanduser("~")
+            
+        folder_name = args.get("folder_name")
+        
+        if not folder_name:
+            return json.dumps({
+                "success": False,
+                "error": "Folder name is required"
+            })
+            
+        if setup_vue(path, folder_name):
+            return json.dumps({
+                "success": True,
+                "message": f"Vue 3 project created successfully in {folder_name}"
+            })
+        else:
+            return json.dumps({
+                "success": False,
+                "error": "Project setup failed"
+            })
+            
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        })
+
+object = {
+    "name": "vue_setup",
+    "description": "Create a new Vue 3 project with TypeScript, Vue Router, Pinia, and TailwindCSS",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Directory path where the project should be created",
+                "default": "."
+            },
+            "folder_name": {
+                "type": "string",
+                "description": "Name of the project folder"
+            }
+        },
+        "required": ["folder_name"]
+    }
+}
+
+# Required modules
+modules = ['subprocess']

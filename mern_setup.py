@@ -263,15 +263,58 @@ MERN (MongoDB, Express, React, Node.js) Stack project initialized by Scripty
         
     return True
 
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python mern_setup.py <path> <folder_name>")
-        sys.exit(1)
-    
-    path = sys.argv[1]
-    folder_name = sys.argv[2]
-    
-    if setup_mern(path, folder_name):
-        print("MERN Stack setup completed successfully!")
-    else:
-        print("Setup failed")
+async def func(args):
+    """Handler function for MERN stack project setup"""
+    try:
+        # Default to home directory if path not provided or is "."
+        path = args.get("path", ".")
+        if path == ".":
+            path = os.path.expanduser("~")
+            
+        folder_name = args.get("folder_name")
+        
+        if not folder_name:
+            return json.dumps({
+                "success": False,
+                "error": "Folder name is required"
+            })
+            
+        if setup_mern(path, folder_name):
+            return json.dumps({
+                "success": True,
+                "message": f"MERN stack project created successfully in {folder_name}"
+            })
+        else:
+            return json.dumps({
+                "success": False,
+                "error": "Project setup failed"
+            })
+            
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        })
+
+object = {
+    "name": "mern_setup",
+    "description": "Create a new MERN (MongoDB, Express, React, Node.js) stack project with TypeScript and TailwindCSS",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Directory path where the project should be created",
+                "default": "."
+            },
+            "folder_name": {
+                "type": "string",
+                "description": "Name of the project folder"
+            }
+        },
+        "required": ["folder_name"]
+    }
+}
+
+# Required modules
+modules = ['subprocess']

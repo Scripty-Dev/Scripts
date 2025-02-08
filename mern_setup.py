@@ -295,7 +295,7 @@ object = {
             "path": {
                 "type": "string",
                 "description": "Directory path where the project should be created",
-                "default": "~"
+                "default": os.path.expanduser("~")
             },
             "folder_name": {
                 "type": "string",

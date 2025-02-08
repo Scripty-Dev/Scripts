@@ -331,7 +331,7 @@ object = {
             "path": {
                 "type": "string",
                 "description": "Directory path where the project should be created",
-                "default": "~"
+                "default": os.path.expanduser("~")
             },
             "folder_name": {
                 "type": "string",
@@ -344,16 +344,3 @@ object = {
 
 # Required modules
 modules = ['subprocess']
-
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python flask_setup.py <path> <folder_name>")
-        sys.exit(1)
-    
-    path = sys.argv[1]
-    folder_name = sys.argv[2]
-    
-    if setup_flask_ts(path, folder_name):
-        print("Flask + TypeScript setup completed successfully!")
-    else:
-        print("Setup failed")

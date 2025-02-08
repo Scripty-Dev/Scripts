@@ -20,7 +20,7 @@ def run_command(command, cwd=None):
         print(f"Error executing command: {e}")
         return False
 
-def setup_vue(path, folder_name):
+def setup_vue(path=os.path.expanduser("~"), folder_name="vue-ts-app"):
     full_path = os.path.join(path, folder_name)
     
     print(f"Creating Vue 3 + TypeScript project in: {full_path}")
@@ -262,24 +262,15 @@ app.mount('#app')"""
     return True
 
 async def func(args):
-    """Handler function for Vue 3 project setup"""
+    """Handler function for Vue.js project setup"""
     try:
-        path = args.get("path", ".")
-        if path == ".":
-            path = os.path.expanduser("~")
-            
-        folder_name = args.get("folder_name")
+        path = args.get("path", os.path.expanduser("~"))
+        folder_name = args.get("folder_name", "vue_project")
         
-        if not folder_name:
-            return json.dumps({
-                "success": False,
-                "error": "Folder name is required"
-            })
-            
         if setup_vue(path, folder_name):
             return json.dumps({
                 "success": True,
-                "message": f"Vue 3 project created successfully in {folder_name}"
+                "message": f"Vue.js project created successfully in {folder_name}"
             })
         else:
             return json.dumps({
@@ -295,21 +286,21 @@ async def func(args):
 
 object = {
     "name": "vue_setup",
-    "description": "Create a new Vue 3 project with TypeScript, Vue Router, Pinia, and TailwindCSS",
+    "description": "Create a new Vue 3 project with TypeScript and TailwindCSS",
     "parameters": {
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
                 "description": "Directory path where the project should be created",
-                "default": "."
+                "default": "~"
             },
             "folder_name": {
                 "type": "string",
-                "description": "Name of the project folder"
+                "description": "Name of the project folder",
+                "default": "vue_project"
             }
-        },
-        "required": ["folder_name"]
+        }
     }
 }
 

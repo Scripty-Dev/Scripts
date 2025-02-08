@@ -57,7 +57,7 @@ def modify_css(path):
     with open(os.path.join(path, 'src', 'index.css'), 'w') as f:
         f.write(css_content)
 
-def setup_fastapi_react(path, folder_name):
+def setup_fastapi_react(path=os.path.expanduser("~"), folder_name="fastapi-react-app"):
     full_path = os.path.join(path, folder_name)
     
     # Create main project directories
@@ -278,18 +278,9 @@ FastAPI + React Stack project initialized by Scripty
 async def func(args):
     """Handler function for FastAPI + React project setup"""
     try:
-        path = args.get("path", ".")
-        if path == ".":
-            path = os.path.expanduser("~")
-            
-        folder_name = args.get("folder_name")
+        path = args.get("path", os.path.expanduser("~"))
+        folder_name = args.get("folder_name", "fastapi_project")
         
-        if not folder_name:
-            return json.dumps({
-                "success": False,
-                "error": "Folder name is required"
-            })
-            
         if setup_fastapi_react(path, folder_name):
             return json.dumps({
                 "success": True,
@@ -316,14 +307,14 @@ object = {
             "path": {
                 "type": "string",
                 "description": "Directory path where the project should be created",
-                "default": "."
+                "default": "~"
             },
             "folder_name": {
                 "type": "string",
-                "description": "Name of the project folder"
+                "description": "Name of the project folder",
+                "default": "fastapi_project"
             }
-        },
-        "required": ["folder_name"]
+        }
     }
 }
 

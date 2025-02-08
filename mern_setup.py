@@ -57,7 +57,7 @@ def create_postcss_config(path):
     with open(os.path.join(path, 'postcss.config.js'), 'w') as f:
         f.write(config_content)
 
-def setup_mern(path, folder_name):
+def setup_mern(path=os.path.expanduser("~"), folder_name="mern-stack-app"):
     full_path = os.path.join(path, folder_name)
     
     # Create main project directories
@@ -264,25 +264,15 @@ MERN (MongoDB, Express, React, Node.js) Stack project initialized by Scripty
     return True
 
 async def func(args):
-    """Handler function for MERN stack project setup"""
+    """Handler function for MERN Stack project setup"""
     try:
-        # Default to home directory if path not provided or is "."
-        path = args.get("path", ".")
-        if path == ".":
-            path = os.path.expanduser("~")
-            
-        folder_name = args.get("folder_name")
+        path = args.get("path", os.path.expanduser("~"))
+        folder_name = args.get("folder_name", "mern_project")
         
-        if not folder_name:
-            return json.dumps({
-                "success": False,
-                "error": "Folder name is required"
-            })
-            
         if setup_mern(path, folder_name):
             return json.dumps({
                 "success": True,
-                "message": f"MERN stack project created successfully in {folder_name}"
+                "message": f"MERN Stack project created successfully in {folder_name}"
             })
         else:
             return json.dumps({
@@ -298,21 +288,21 @@ async def func(args):
 
 object = {
     "name": "mern_setup",
-    "description": "Create a new MERN (MongoDB, Express, React, Node.js) stack project with TypeScript and TailwindCSS",
+    "description": "Create a new MERN Stack project with TypeScript and TailwindCSS",
     "parameters": {
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
                 "description": "Directory path where the project should be created",
-                "default": "."
+                "default": "~"
             },
             "folder_name": {
                 "type": "string",
-                "description": "Name of the project folder"
+                "description": "Name of the project folder",
+                "default": "mern_project"
             }
-        },
-        "required": ["folder_name"]
+        }
     }
 }
 

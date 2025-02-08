@@ -57,7 +57,7 @@ def modify_css(path):
     with open(os.path.join(path, 'src', 'index.css'), 'w') as f:
         f.write(css_content)
 
-def setup_flask_ts(path, folder_name):
+def setup_flask_ts(path=os.path.expanduser("~"), folder_name="flask-ts-app"):
     full_path = os.path.join(path, folder_name)
     
     # Create main project directories
@@ -331,14 +331,14 @@ object = {
             "path": {
                 "type": "string",
                 "description": "Directory path where the project should be created",
-                "default": "."
+                "default": "~"
             },
             "folder_name": {
                 "type": "string",
-                "description": "Name of the project folder"
+                "description": "Name of the project folder",
+                "default": "flask_project"
             }
-        },
-        "required": ["folder_name"]
+        }
     }
 }
 

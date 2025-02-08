@@ -228,18 +228,9 @@ Express.js + TypeScript API initialized by Scripty
 async def func(args):
     """Handler function for Express.js + TypeScript project setup"""
     try:
-        path = args.get("path", ".")
-        if path == ".":
-            path = os.path.expanduser("~")
-            
-        folder_name = args.get("folder_name")
+        path = args.get("path", os.path.expanduser("~"))
+        folder_name = args.get("folder_name", "express-ts-app")
         
-        if not folder_name:
-            return json.dumps({
-                "success": False,
-                "error": "Folder name is required"
-            })
-            
         if setup_express_ts(path, folder_name):
             return json.dumps({
                 "success": True,
@@ -266,14 +257,14 @@ object = {
             "path": {
                 "type": "string",
                 "description": "Directory path where the project should be created",
-                "default": "."
+                "default": "~"
             },
             "folder_name": {
                 "type": "string",
-                "description": "Name of the project folder"
+                "description": "Name of the project folder",
+                "default": "express_project"
             }
-        },
-        "required": ["folder_name"]
+        }
     }
 }
 

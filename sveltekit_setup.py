@@ -20,7 +20,7 @@ def run_command(command, cwd=None):
         print(f"Error executing command: {e}")
         return False
 
-def setup_sveltekit(path, folder_name):
+def setup_sveltekit(path=os.path.expanduser("~"), folder_name="sveltekit-app"):
     full_path = os.path.join(path, folder_name)
     
     print(f"Creating SvelteKit + TypeScript project in: {full_path}")
@@ -219,14 +219,14 @@ object = {
             "path": {
                 "type": "string",
                 "description": "Directory path where the project should be created",
-                "default": "."
+                "default": "~"
             },
             "folder_name": {
                 "type": "string",
-                "description": "Name of the project folder"
+                "description": "Name of the project folder",
+                "default": "sveltekit_project"
             }
-        },
-        "required": ["folder_name"]
+        }
     }
 }
 

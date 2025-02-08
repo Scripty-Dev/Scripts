@@ -20,7 +20,7 @@ def run_command(command, cwd=None):
         print(f"Error executing command: {e}")
         return False
 
-def setup_nextjs(path, folder_name):
+def setup_nextjs(path=os.path.expanduser("~"), folder_name="nextjs-app"):
     full_path = os.path.join(path, folder_name)
     
     print(f"Creating Next.js project in: {full_path}")
@@ -90,18 +90,9 @@ export default function Home() {
 async def func(args):
     """Handler function for Next.js project setup"""
     try:
-        path = args.get("path", ".")
-        if path == ".":
-            path = os.path.expanduser("~")
-            
-        folder_name = args.get("folder_name")
+        path = args.get("path", os.path.expanduser("~"))
+        folder_name = args.get("folder_name", "next_project")
         
-        if not folder_name:
-            return json.dumps({
-                "success": False,
-                "error": "Folder name is required"
-            })
-            
         if setup_nextjs(path, folder_name):
             return json.dumps({
                 "success": True,
@@ -128,14 +119,14 @@ object = {
             "path": {
                 "type": "string",
                 "description": "Directory path where the project should be created",
-                "default": "."
+                "default": "~"
             },
             "folder_name": {
                 "type": "string",
-                "description": "Name of the project folder"
+                "description": "Name of the project folder",
+                "default": "next_project"
             }
-        },
-        "required": ["folder_name"]
+        }
     }
 }
 

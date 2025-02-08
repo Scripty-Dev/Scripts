@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 import requests
 
+authtoken='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI0ZGJjNDkxYi02N2Q0LTRjOGMtOWI4NC1hODZlNGI4ZDFhOTAiLCJpYXQiOjE3MzkwMzYwMjgsImV4cCI6MTczOTEyMjQyOH0.qHQHpageNoaaH0rXuagzPgvEWt5TUkZ76oTVLWYOJbQ'
+
 def get_base_directory():
     """Get the base directory in user's home folder"""
     home = str(Path.home())
@@ -28,19 +30,22 @@ def save_description(description, descriptions_dir):
 
 def format_salary(row):
     """Format salary from min/max amounts into readable string"""
-    if pd.isna(row.get('min_amount')):
-        return 'Not specified'
-    
-    min_amt = f"${int(row['min_amount']):,}" if pd.notna(row.get('min_amount')) else ''
-    max_amt = f"${int(row['max_amount']):,}" if pd.notna(row.get('max_amount')) else ''
-    currency = row['currency'] if pd.notna(row.get('currency')) else 'CAD'  # Default to CAD for Toronto
-    interval = row['interval'] if pd.notna(row.get('interval')) else 'yearly'
-    
-    if min_amt and max_amt:
-        return f"{min_amt} - {max_amt} {currency} {interval}"
-    elif min_amt:
-        return f"{min_amt} {currency} {interval}"
-    else:
+    try:
+        if pd.isna(row.get('min_amount')):
+            return 'Not specified'
+        
+        min_amt = str(row['min_amount']) if pd.notna(row.get('min_amount')) else ''
+        max_amt = str(row['max_amount']) if pd.notna(row.get('max_amount')) else ''
+        currency = str(row['currency']) if pd.notna(row.get('currency')) else 'CAD'  # Default to CAD for Toronto
+        interval = str(row['interval']) if pd.notna(row.get('interval')) else 'yearly'
+        
+        if min_amt and max_amt:
+            return f"{min_amt} - {max_amt} {currency} {interval}"
+        elif min_amt:
+            return f"{min_amt} {currency} {interval}"
+        else:
+            return 'Not specified'
+    except:
         return 'Not specified'
 
 def export_to_sheets(jobs_data, authtoken):
@@ -51,9 +56,20 @@ def export_to_sheets(jobs_data, authtoken):
             "Content-Type": "application/json"
         }
         
+        # Convert all values to strings to ensure JSON compatibility
+        safe_jobs_data = []
+        for job in jobs_data:
+            safe_job = {}
+            for key, value in job.items():
+                if pd.isna(value):
+                    safe_job[key] = ''
+                else:
+                    safe_job[key] = str(value)
+            safe_jobs_data.append(safe_job)
+        
         # Format the data for sheets
         data = {
-            "jobs": jobs_data
+            "jobs": safe_jobs_data
         }
         
         response = requests.post(
@@ -66,7 +82,7 @@ def export_to_sheets(jobs_data, authtoken):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-def search_jobs(job_title, location, authtoken=None):
+def search_jobs(job_title, location):
     """Main function to search for jobs"""
     try:
         timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -144,10 +160,9 @@ def search_jobs(job_title, location, authtoken=None):
             "save_location": search_dir,
             "results": results
         }
-        
-        if authtoken:
-            sheets_result = export_to_sheets(results, authtoken)
-            result["sheets_export"] = sheets_result
+
+        sheets_result = export_to_sheets(results, authtoken)
+        result["sheets_export"] = sheets_result
             
         return result
         
@@ -186,6 +201,7 @@ modules = ['python-jobspy', 'pandas', 'requests']
 
 async def func(args):
     """Handler function for the API"""
+    print(authtoken)
     try:
         if not args.get("job_title"):
             return json.dumps({
@@ -199,7 +215,7 @@ async def func(args):
                 "error": "Location is required"
             })
             
-        result = search_jobs(args["job_title"], args["location"], authtoken)
+        result = search_jobs(args["job_title"], args["location"])
         return json.dumps(result)
         
     except Exception as e:
@@ -207,3 +223,16 @@ async def func(args):
             "success": False,
             "error": str(e)
         })
+
+if __name__ == "__main__":
+    import asyncio
+    
+    # Test arguments
+    test_args = {
+        "job_title": "Software Engineer",
+        "location": "Toronto, ON"
+    }
+    
+    # Run the async function
+    result = asyncio.run(func(test_args))
+    print(result)

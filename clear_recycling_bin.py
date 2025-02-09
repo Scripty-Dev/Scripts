@@ -62,5 +62,3 @@ object = {
         "required": []
     }
 }
-
-modules = []  # No external modules required

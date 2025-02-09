@@ -166,5 +166,3 @@ object = {
         }
     }
 }
-
-modules = [] # No special modules needed

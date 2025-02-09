@@ -329,6 +329,3 @@ object = {
         }
     }
 }
-  
-# Required modules
-modules = ['subprocess']

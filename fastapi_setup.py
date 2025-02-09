@@ -2,22 +2,27 @@ import subprocess
 import os
 import sys
 import json
+import tkinter as tk
+from tkinter import filedialog
 
 def run_command(command, cwd=None):
     try:
-        print(f"Executing command: {command}")
-        process = subprocess.Popen(command, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            command, 
+            cwd=cwd, 
+            shell=True, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True
+        )
         stdout, stderr = process.communicate()
         
-        if stdout:
-            print("Output:", stdout.decode())
-        if stderr:
-            print("Errors:", stderr.decode())
-            
-        process.wait()
-        return process.returncode == 0
+        if process.returncode != 0:
+            print(f"Command failed: {stderr}")
+            return False
+        return True
     except Exception as e:
-        print(f"Error executing command: {e}")
+        print(f"Error executing command: {str(e)}")
         return False
 
 def create_tailwind_config(path):
@@ -57,28 +62,51 @@ def modify_css(path):
     with open(os.path.join(path, 'src', 'index.css'), 'w') as f:
         f.write(css_content)
 
-def setup_fastapi_react(path=os.path.expanduser("~"), folder_name="fastapi-react-app"):
-    full_path = os.path.join(path, folder_name)
-    
-    # Create main project directories
-    backend_path = os.path.join(full_path, 'backend')
-    frontend_path = os.path.join(full_path, 'frontend')
-    
-    os.makedirs(full_path)
-    os.makedirs(backend_path)
-    os.makedirs(frontend_path)
-    
-    # Backend setup
-    print("\nSetting up FastAPI Backend...")
-    
-    # Create backend structure
-    backend_app = os.path.join(backend_path, 'app')
-    os.makedirs(os.path.join(backend_app, 'routers'), exist_ok=True)
-    os.makedirs(os.path.join(backend_app, 'models'), exist_ok=True)
-    os.makedirs(os.path.join(backend_app, 'schemas'), exist_ok=True)
-    
-    # Create pyproject.toml for Poetry
-    pyproject_content = """[tool.poetry]
+def setup_fastapi_react(folder_name="fastapi-react-app"):
+    try:
+        # Create and configure root window with HiDPI support
+        try:
+            from ctypes import windll
+            windll.shcore.SetProcessDpiAwareness(2)
+        except:
+            pass
+
+        root = tk.Tk()
+        try:
+            root.tk.call('tk', 'scaling', root.winfo_fpixels('1i')/72.0)
+        except:
+            pass
+            
+        root.withdraw()
+        
+        path = filedialog.askdirectory(
+            title="Select Directory for FastAPI Project"
+        )
+        
+        if not path:
+            return False
+
+        full_path = os.path.join(path, folder_name)
+        
+        # Create main project directories
+        backend_path = os.path.join(full_path, 'backend')
+        frontend_path = os.path.join(full_path, 'frontend')
+        
+        os.makedirs(full_path)
+        os.makedirs(backend_path)
+        os.makedirs(frontend_path)
+        
+        # Backend setup
+        print("\nSetting up FastAPI Backend...")
+        
+        # Create backend structure
+        backend_app = os.path.join(backend_path, 'app')
+        os.makedirs(os.path.join(backend_app, 'routers'), exist_ok=True)
+        os.makedirs(os.path.join(backend_app, 'models'), exist_ok=True)
+        os.makedirs(os.path.join(backend_app, 'schemas'), exist_ok=True)
+        
+        # Create pyproject.toml for Poetry
+        pyproject_content = """[tool.poetry]
 name = "fastapi-react-backend"
 version = "0.1.0"
 description = "FastAPI backend initialized by Scripty"
@@ -101,11 +129,11 @@ mypy = "^1.5.0"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"""
 
-    with open(os.path.join(backend_path, 'pyproject.toml'), 'w') as f:
-        f.write(pyproject_content)
+        with open(os.path.join(backend_path, 'pyproject.toml'), 'w') as f:
+            f.write(pyproject_content)
 
-    # Create main.py
-    main_content = """from fastapi import FastAPI
+        # Create main.py
+        main_content = """from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
@@ -132,55 +160,55 @@ if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 """
 
-    with open(os.path.join(backend_path, 'main.py'), 'w') as f:
-        f.write(main_content)
+        with open(os.path.join(backend_path, 'main.py'), 'w') as f:
+            f.write(main_content)
 
-    # Create .env
-    env_content = """PORT=8000
+        # Create .env
+        env_content = """PORT=8000
 DATABASE_URL=sqlite:///./app.db
 ENVIRONMENT=development"""
 
-    with open(os.path.join(backend_path, '.env'), 'w') as f:
-        f.write(env_content)
+        with open(os.path.join(backend_path, '.env'), 'w') as f:
+            f.write(env_content)
 
-    # Create requirements.txt as backup
-    requirements_content = """fastapi>=0.109.0
+        # Create requirements.txt as backup
+        requirements_content = """fastapi>=0.109.0
 uvicorn>=0.27.0
 pydantic>=2.6.0
 sqlalchemy>=2.0.25
 python-dotenv>=1.0.0"""
 
-    with open(os.path.join(backend_path, 'requirements.txt'), 'w') as f:
-        f.write(requirements_content)
+        with open(os.path.join(backend_path, 'requirements.txt'), 'w') as f:
+            f.write(requirements_content)
 
-    # Frontend setup (reuse Vite setup)
-    print("\nSetting up React Frontend...")
-    
-    frontend_commands = [
-        f"npm create vite@latest . -- --template react-ts --force",
-        "npm install",
-        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
-        "npm install axios @tanstack/react-query react-router-dom"
-    ]
-    
-    for cmd in frontend_commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=frontend_path):
-            return False
+        # Frontend setup (reuse Vite setup)
+        print("\nSetting up React Frontend...")
+        
+        frontend_commands = [
+            f"npm create vite@latest . -- --template react-ts --force",
+            "npm install",
+            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
+            "npm install axios @tanstack/react-query react-router-dom"
+        ]
+        
+        for cmd in frontend_commands:
+            print(f"\nExecuting: {cmd}")
+            if not run_command(cmd, cwd=frontend_path):
+                return False
 
-    # Use helper functions
-    create_tailwind_config(frontend_path)
-    create_postcss_config(frontend_path)
-    modify_css(frontend_path)
+        # Use helper functions
+        create_tailwind_config(frontend_path)
+        create_postcss_config(frontend_path)
+        modify_css(frontend_path)
 
-    # Create frontend .env
-    frontend_env = """VITE_API_URL=http://localhost:8000/api"""
-    
-    with open(os.path.join(frontend_path, '.env'), 'w') as f:
-        f.write(frontend_env)
+        # Create frontend .env
+        frontend_env = """VITE_API_URL=http://localhost:8000/api"""
+        
+        with open(os.path.join(frontend_path, '.env'), 'w') as f:
+            f.write(frontend_env)
 
-    # Create App.tsx with FastAPI test
-    app_content = """import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+        # Create App.tsx with FastAPI test
+        app_content = """import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
@@ -234,12 +262,12 @@ function App() {
 }
 
 export default App"""
-    
-    with open(os.path.join(frontend_path, 'src', 'App.tsx'), 'w') as f:
-        f.write(app_content)
+        
+        with open(os.path.join(frontend_path, 'src', 'App.tsx'), 'w') as f:
+            f.write(app_content)
 
-    # Create README
-    readme_content = f"""# {folder_name}
+        # Create README
+        readme_content = f"""# {folder_name}
 
 FastAPI + React Stack project initialized by Scripty
 
@@ -270,10 +298,13 @@ FastAPI + React Stack project initialized by Scripty
 - TailwindCSS for styling
 - TypeScript for type safety"""
 
-    with open(os.path.join(full_path, 'README.md'), 'w', encoding='utf-8') as f:
-        f.write(readme_content)
+        with open(os.path.join(full_path, 'README.md'), 'w', encoding='utf-8') as f:
+            f.write(readme_content)
         
-    return True
+        return True
+    except Exception as e:
+        print(f"Error setting up FastAPI + React project: {e}")
+        return False
 
 async def func(args):
     """Handler function for FastAPI + React project setup"""
@@ -281,7 +312,7 @@ async def func(args):
         path = args.get("path", os.path.expanduser("~"))
         folder_name = args.get("folder_name", "fastapi_project")
         
-        if setup_fastapi_react(path, folder_name):
+        if setup_fastapi_react(folder_name):
             return json.dumps({
                 "success": True,
                 "message": f"FastAPI + React project created successfully in {folder_name}"
@@ -304,11 +335,6 @@ object = {
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Directory path where the project should be created",
-                "default": os.path.expanduser("~")
-            },
             "folder_name": {
                 "type": "string",
                 "description": "Name of the project folder",

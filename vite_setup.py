@@ -2,22 +2,27 @@ import subprocess
 import os
 import sys
 import json
+import tkinter as tk
+from tkinter import filedialog
 
 def run_command(command, cwd=None):
     try:
-        print(f"Executing command: {command}")
-        process = subprocess.Popen(command, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            command, 
+            cwd=cwd, 
+            shell=True, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True
+        )
         stdout, stderr = process.communicate()
         
-        if stdout:
-            print("Output:", stdout.decode())
-        if stderr:
-            print("Errors:", stderr.decode())
-            
-        process.wait()
-        return process.returncode == 0
+        if process.returncode != 0:
+            print(f"Command failed: {stderr}")
+            return False
+        return True
     except Exception as e:
-        print(f"Error executing command: {e}")
+        print(f"Error executing command: {str(e)}")
         return False
 
 def modify_css(path):
@@ -96,26 +101,70 @@ export default App"""
     with open(os.path.join(path, 'src', 'App.tsx'), 'w') as f:
         f.write(app_content)
 
-def setup_vite(path, folder_name):
-    full_path = os.path.join(path, folder_name)
-    
-    print(f"Creating Vite project in: {full_path}")
-    commands = [
-        f"npm create vite@latest {folder_name} --yes -- --template react-ts",  # Added --yes flag
-        "npm install",
-        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14"
-    ]
-    
-    for cmd in commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=path if cmd == commands[0] else full_path):
+def setup_vite(folder_name="vite-react-app"):
+    try:
+        # Create and configure root window with HiDPI support
+        try:
+            from ctypes import windll
+            windll.shcore.SetProcessDpiAwareness(2)
+        except:
+            pass
+
+        root = tk.Tk()
+        try:
+            root.tk.call('tk', 'scaling', root.winfo_fpixels('1i')/72.0)
+        except:
+            pass
+            
+        root.withdraw()
+        
+        path = filedialog.askdirectory(
+            title="Select Directory for Vite Project"
+        )
+        
+        if not path:
             return False
 
-    create_tailwind_config(full_path)
-    create_postcss_config(full_path)
-    modify_css(full_path)
-    update_app_tsx(full_path)
-    return True
+        full_path = os.path.join(path, folder_name)
+        
+        if os.path.exists(full_path):
+            print(f"Directory {full_path} already exists")
+            return False
+            
+        print("Setting up Vite project...")
+        commands = [
+            f"npm create vite@latest {folder_name} --yes -- --template react-ts",  # Added --yes flag
+            "npm install --yes",
+            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14 --yes"
+        ]
+        
+        for cmd in commands:
+            print(f"Running: {cmd}")  # Added logging
+            if not run_command(cmd, cwd=path if cmd == commands[0] else full_path):
+                print(f"Failed at command: {cmd}")  # Added logging
+                if os.path.exists(full_path):  # Cleanup on failure
+                    try:
+                        import shutil
+                        shutil.rmtree(full_path)
+                    except:
+                        pass
+                return False
+
+        create_tailwind_config(full_path)
+        create_postcss_config(full_path)
+        modify_css(full_path)
+        update_app_tsx(full_path)
+        
+        return True
+    except Exception as e:
+        print(f"Error in setup_vite: {str(e)}")  # Added logging
+        if os.path.exists(full_path):  # Cleanup on exception
+            try:
+                import shutil
+                shutil.rmtree(full_path)
+            except:
+                pass
+        return False
 
 async def func(args):
     """Handler function for Vite + React project setup"""
@@ -123,7 +172,7 @@ async def func(args):
         path = args.get("path", os.path.expanduser("~"))
         folder_name = args.get("folder_name", "vite_project")
         
-        if setup_vite(path, folder_name):
+        if setup_vite(folder_name):
             return json.dumps({
                 "success": True,
                 "message": f"Vite + React project created successfully in {folder_name}"
@@ -146,11 +195,6 @@ object = {
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Directory path where the project should be created",
-                "default": os.path.expanduser("~")
-            },
             "folder_name": {
                 "type": "string",
                 "description": "Name of the project folder",

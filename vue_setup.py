@@ -2,44 +2,72 @@ import subprocess
 import os
 import sys
 import json
+import tkinter as tk
+from tkinter import filedialog
 
 def run_command(command, cwd=None):
     try:
-        print(f"Executing command: {command}")
-        process = subprocess.Popen(command, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            command, 
+            cwd=cwd, 
+            shell=True, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True
+        )
         stdout, stderr = process.communicate()
         
-        if stdout:
-            print("Output:", stdout.decode())
-        if stderr:
-            print("Errors:", stderr.decode())
-            
-        process.wait()
-        return process.returncode == 0
+        if process.returncode != 0:
+            print(f"Command failed: {stderr}")
+            return False
+        return True
     except Exception as e:
-        print(f"Error executing command: {e}")
+        print(f"Error executing command: {str(e)}")
         return False
 
-def setup_vue(path=os.path.expanduser("~"), folder_name="vue-ts-app"):
-    full_path = os.path.join(path, folder_name)
-    
-    print(f"Creating Vue 3 + TypeScript project in: {full_path}")
-    
-    # Create Vue project with Vite and install initial dependencies
-    commands = [
-        f"npm create vite@latest {folder_name} -- --template vue-ts --force",
-        "npm install",
-        "npm install vue-router@4 pinia @vueuse/core",
-        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
-        "npx tailwindcss init -p" 
-    ]
-    
-    for cmd in commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=path if cmd == commands[0] else full_path):
-            return False
+def setup_vue(folder_name="vue-ts-app"):
+    try:
+        # Create and configure root window with HiDPI support
+        try:
+            from ctypes import windll
+            windll.shcore.SetProcessDpiAwareness(2)
+        except:
+            pass
 
-    tailwind_config = """/** @type {import('tailwindcss').Config} */
+        root = tk.Tk()
+        try:
+            root.tk.call('tk', 'scaling', root.winfo_fpixels('1i')/72.0)
+        except:
+            pass
+            
+        root.withdraw()
+        
+        path = filedialog.askdirectory(
+            title="Select Directory for Vue Project"
+        )
+        
+        if not path:
+            return False
+            
+        full_path = os.path.join(path, folder_name)
+        
+        print(f"Creating Vue 3 + TypeScript project in: {full_path}")
+        
+        # Create Vue project with Vite and install initial dependencies
+        commands = [
+            f"npm create vite@latest {folder_name} -- --template vue-ts --force",
+            "npm install",
+            "npm install vue-router@4 pinia @vueuse/core",
+            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
+            "npx tailwindcss init -p" 
+        ]
+        
+        for cmd in commands:
+            print(f"\nExecuting: {cmd}")
+            if not run_command(cmd, cwd=path if cmd == commands[0] else full_path):
+                return False
+
+        tailwind_config = """/** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./index.html",
@@ -51,22 +79,22 @@ export default {
   plugins: [],
 }"""
 
-    with open(os.path.join(full_path, 'tailwind.config.js'), 'w') as f:
-        f.write(tailwind_config)
+        with open(os.path.join(full_path, 'tailwind.config.js'), 'w') as f:
+            f.write(tailwind_config)
         
-    # Create PostCSS config
-    postcss_config = """export default {
+        # Create PostCSS config
+        postcss_config = """export default {
   plugins: {
     'tailwindcss': {},
     autoprefixer: {},
   },
 }"""
 
-    with open(os.path.join(full_path, 'postcss.config.js'), 'w') as f:
-        f.write(postcss_config)
+        with open(os.path.join(full_path, 'postcss.config.js'), 'w') as f:
+            f.write(postcss_config)
 
-    # Update App.vue with Scripty branding
-    app_content = """<script setup lang="ts">
+        # Update App.vue with Scripty branding
+        app_content = """<script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
 
 </script>
@@ -103,11 +131,11 @@ import { RouterLink, RouterView } from 'vue-router'
   </div>
 </template>"""
 
-    with open(os.path.join(full_path, 'src', 'App.vue'), 'w') as f:
-        f.write(app_content)
+        with open(os.path.join(full_path, 'src', 'App.vue'), 'w') as f:
+            f.write(app_content)
 
-    # Create Home view with fixed template
-    home_content = """<script setup lang="ts">
+        # Create Home view with fixed template
+        home_content = """<script setup lang="ts">
 import { ref } from 'vue'
 
 const count = ref(0)
@@ -166,12 +194,12 @@ const count = ref(0)
   </div>
 </template>"""
 
-    os.makedirs(os.path.join(full_path, 'src', 'views'), exist_ok=True)
-    with open(os.path.join(full_path, 'src', 'views', 'HomeView.vue'), 'w') as f:
-        f.write(home_content)
+        os.makedirs(os.path.join(full_path, 'src', 'views'), exist_ok=True)
+        with open(os.path.join(full_path, 'src', 'views', 'HomeView.vue'), 'w') as f:
+            f.write(home_content)
 
-    # Create About view
-    about_content = """<template>
+        # Create About view
+        about_content = """<template>
   <div class="text-center">
     <h1 class="text-4xl font-bold mb-8">About</h1>
     <p class="text-lg text-gray-600 max-w-2xl mx-auto">
@@ -182,11 +210,11 @@ const count = ref(0)
   </div>
 </template>"""
 
-    with open(os.path.join(full_path, 'src', 'views', 'AboutView.vue'), 'w') as f:
-        f.write(about_content)
+        with open(os.path.join(full_path, 'src', 'views', 'AboutView.vue'), 'w') as f:
+            f.write(about_content)
 
-    # Update router
-    router_content = """import { createRouter, createWebHistory } from 'vue-router'
+        # Update router
+        router_content = """import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import AboutView from '../views/AboutView.vue'
 
@@ -208,12 +236,12 @@ const router = createRouter({
 
 export default router"""
 
-    os.makedirs(os.path.join(full_path, 'src', 'router'), exist_ok=True)
-    with open(os.path.join(full_path, 'src', 'router', 'index.ts'), 'w') as f:
-        f.write(router_content)
+        os.makedirs(os.path.join(full_path, 'src', 'router'), exist_ok=True)
+        with open(os.path.join(full_path, 'src', 'router', 'index.ts'), 'w') as f:
+            f.write(router_content)
 
-    # Create main store with Pinia
-    store_content = """import { defineStore } from 'pinia'
+        # Create main store with Pinia
+        store_content = """import { defineStore } from 'pinia'
 
 export const useMainStore = defineStore('main', {
   state: () => ({
@@ -230,12 +258,12 @@ export const useMainStore = defineStore('main', {
   }
 })"""
 
-    os.makedirs(os.path.join(full_path, 'src', 'stores'), exist_ok=True)
-    with open(os.path.join(full_path, 'src', 'stores', 'main.ts'), 'w') as f:
-        f.write(store_content)
+        os.makedirs(os.path.join(full_path, 'src', 'stores'), exist_ok=True)
+        with open(os.path.join(full_path, 'src', 'stores', 'main.ts'), 'w') as f:
+            f.write(store_content)
 
-    # Update main.ts
-    main_content = """import './style.css'
+        # Update main.ts
+        main_content = """import './style.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
@@ -248,18 +276,21 @@ app.use(router)
 
 app.mount('#app')"""
 
-    with open(os.path.join(full_path, 'src', 'main.ts'), 'w') as f:
-        f.write(main_content)
+        with open(os.path.join(full_path, 'src', 'main.ts'), 'w') as f:
+            f.write(main_content)
 
-    # Update style.css
-    style_content = """@tailwind base;
+        # Update style.css
+        style_content = """@tailwind base;
 @tailwind components;
 @tailwind utilities;"""
 
-    with open(os.path.join(full_path, 'src', 'style.css'), 'w') as f:
-        f.write(style_content)
+        with open(os.path.join(full_path, 'src', 'style.css'), 'w') as f:
+            f.write(style_content)
 
-    return True
+        return True
+    except Exception as e:
+        print(f"Error setting up Vue project: {e}")
+        return False
 
 async def func(args):
     """Handler function for Vue.js project setup"""
@@ -267,7 +298,7 @@ async def func(args):
         path = args.get("path", os.path.expanduser("~"))
         folder_name = args.get("folder_name", "vue_project")
         
-        if setup_vue(path, folder_name):
+        if setup_vue(folder_name):
             return json.dumps({
                 "success": True,
                 "message": f"Vue.js project created successfully in {folder_name}"
@@ -290,11 +321,6 @@ object = {
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Directory path where the project should be created",
-                "default": os.path.expanduser("~")
-            },
             "folder_name": {
                 "type": "string",
                 "description": "Name of the project folder",
@@ -303,6 +329,6 @@ object = {
         }
     }
 }
-
+  
 # Required modules
 modules = ['subprocess']

@@ -2,37 +2,65 @@ import subprocess
 import os
 import sys
 import json
+import tkinter as tk
+from tkinter import filedialog
 
 def run_command(command, cwd=None):
     try:
-        print(f"Executing command: {command}")
-        process = subprocess.Popen(command, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            command, 
+            cwd=cwd, 
+            shell=True, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True
+        )
         stdout, stderr = process.communicate()
         
-        if stdout:
-            print("Output:", stdout.decode())
-        if stderr:
-            print("Errors:", stderr.decode())
-            
-        process.wait()
-        return process.returncode == 0
+        if process.returncode != 0:
+            print(f"Command failed: {stderr}")
+            return False
+        return True
     except Exception as e:
-        print(f"Error executing command: {e}")
+        print(f"Error executing command: {str(e)}")
         return False
 
-def setup_nextjs(path=os.path.expanduser("~"), folder_name="nextjs-app"):
-    full_path = os.path.join(path, folder_name)
-    
-    print(f"Creating Next.js project in: {full_path}")
-    
-    # Create Next.js project with TypeScript and Tailwind
-    create_command = f"npx create-next-app@latest {folder_name} --ts --tailwind --eslint --app --src-dir --import-alias '@/*' -y --no-turbopack --use-npm --yes"
-    
-    if not run_command(create_command, cwd=path):
-        return False
+def setup_nextjs(folder_name="nextjs-app"):
+    try:
+        # Create and configure root window with HiDPI support
+        try:
+            from ctypes import windll
+            windll.shcore.SetProcessDpiAwareness(2)
+        except:
+            pass
+
+        root = tk.Tk()
+        try:
+            root.tk.call('tk', 'scaling', root.winfo_fpixels('1i')/72.0)
+        except:
+            pass
+            
+        root.withdraw()
         
-    # Update the page.tsx with custom content
-    page_content = """import Image from 'next/image'
+        path = filedialog.askdirectory(
+            title="Select Directory for Next.js Project"
+        )
+        
+        if not path:
+            return False
+        
+        full_path = os.path.join(path, folder_name)
+        
+        print(f"Creating Next.js project in: {full_path}")
+        
+        # Create Next.js project with TypeScript and Tailwind
+        create_command = f"npx create-next-app@latest {folder_name} --ts --tailwind --eslint --app --src-dir --import-alias '@/*' -y --no-turbopack --use-npm --yes"
+        
+        if not run_command(create_command, cwd=path):
+            return False
+        
+        # Update the page.tsx with custom content
+        page_content = """import Image from 'next/image'
 
 export default function Home() {
   return (
@@ -81,11 +109,14 @@ export default function Home() {
     </main>
   )
 }"""
-    
-    with open(os.path.join(full_path, 'src', 'app', 'page.tsx'), 'w') as f:
-        f.write(page_content)
         
-    return True
+        with open(os.path.join(full_path, 'src', 'app', 'page.tsx'), 'w') as f:
+            f.write(page_content)
+        
+        return True
+    except Exception as e:
+        print(f"Error setting up Next.js project: {e}")
+        return False
 
 async def func(args):
     """Handler function for Next.js project setup"""
@@ -93,7 +124,7 @@ async def func(args):
         path = args.get("path", os.path.expanduser("~"))
         folder_name = args.get("folder_name", "next_project")
         
-        if setup_nextjs(path, folder_name):
+        if setup_nextjs(folder_name):
             return json.dumps({
                 "success": True,
                 "message": f"Next.js project created successfully in {folder_name}"
@@ -116,11 +147,6 @@ object = {
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Directory path where the project should be created",
-                "default": os.path.expanduser("~")
-            },
             "folder_name": {
                 "type": "string",
                 "description": "Name of the project folder",

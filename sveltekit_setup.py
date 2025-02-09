@@ -2,43 +2,71 @@ import subprocess
 import os
 import sys
 import json
+import tkinter as tk
+from tkinter import filedialog
 
 def run_command(command, cwd=None):
     try:
-        print(f"Executing command: {command}")
-        process = subprocess.Popen(command, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            command, 
+            cwd=cwd, 
+            shell=True, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True
+        )
         stdout, stderr = process.communicate()
         
-        if stdout:
-            print("Output:", stdout.decode())
-        if stderr:
-            print("Errors:", stderr.decode())
-            
-        process.wait()
-        return process.returncode == 0
+        if process.returncode != 0:
+            print(f"Command failed: {stderr}")
+            return False
+        return True
     except Exception as e:
-        print(f"Error executing command: {e}")
+        print(f"Error executing command: {str(e)}")
         return False
 
-def setup_sveltekit(path=os.path.expanduser("~"), folder_name="sveltekit-app"):
-    full_path = os.path.join(path, folder_name)
-    
-    print(f"Creating SvelteKit + TypeScript project in: {full_path}")
-    
-    commands = [
-        f"npm create vite@latest {folder_name} -- --template svelte-ts --force",
-        "npm install",
-        "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
-        "npx tailwindcss init -p"
-    ]
-    
-    for cmd in commands:
-        print(f"\nExecuting: {cmd}")
-        if not run_command(cmd, cwd=path if cmd == commands[0] else full_path):
+def setup_sveltekit(folder_name="sveltekit-app"):
+    try:
+        # Create and configure root window with HiDPI support
+        try:
+            from ctypes import windll
+            windll.shcore.SetProcessDpiAwareness(2)
+        except:
+            pass
+
+        root = tk.Tk()
+        try:
+            root.tk.call('tk', 'scaling', root.winfo_fpixels('1i')/72.0)
+        except:
+            pass
+            
+        root.withdraw()
+        
+        path = filedialog.askdirectory(
+            title="Select Directory for SvelteKit Project"
+        )
+        
+        if not path:
             return False
 
-    # Create Tailwind config
-    tailwind_config = """/** @type {import('tailwindcss').Config} */
+        full_path = os.path.join(path, folder_name)
+        
+        print(f"Creating SvelteKit + TypeScript project in: {full_path}")
+        
+        commands = [
+            f"npm create vite@latest {folder_name} -- --template svelte-ts --force",
+            "npm install",
+            "npm install -D tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.14",
+            "npx tailwindcss init -p"
+        ]
+        
+        for cmd in commands:
+            print(f"\nExecuting: {cmd}")
+            if not run_command(cmd, cwd=path if cmd == commands[0] else full_path):
+                return False
+
+        # Create Tailwind config
+        tailwind_config = """/** @type {import('tailwindcss').Config} */
 export default {
   content: ['./src/**/*.{html,js,svelte,ts}'],
   theme: {
@@ -47,19 +75,19 @@ export default {
   plugins: [],
 }"""
 
-    with open(os.path.join(full_path, 'tailwind.config.js'), 'w') as f:
-        f.write(tailwind_config)
+        with open(os.path.join(full_path, 'tailwind.config.js'), 'w') as f:
+            f.write(tailwind_config)
 
-    # Update style.css with Tailwind
-    css_content = """@tailwind base;
+        # Update style.css with Tailwind
+        css_content = """@tailwind base;
 @tailwind components;
 @tailwind utilities;"""
 
-    with open(os.path.join(full_path, 'src', 'style.css'), 'w') as f:
-        f.write(css_content)
+        with open(os.path.join(full_path, 'src', 'style.css'), 'w') as f:
+            f.write(css_content)
 
-    # Update App.svelte
-    app_content = """<script lang="ts">
+        # Update App.svelte
+        app_content = """<script lang="ts">
   import './style.css'
   import svelteLogo from './assets/svelte.svg'
   import viteLogo from '/vite.svg'
@@ -121,11 +149,11 @@ export default {
   </p>
 </main>"""
 
-    with open(os.path.join(full_path, 'src', 'App.svelte'), 'w') as f:
-        f.write(app_content)
+        with open(os.path.join(full_path, 'src', 'App.svelte'), 'w') as f:
+            f.write(app_content)
 
-    # Create Counter component
-    counter_content = """<script lang="ts">
+        # Create Counter component
+        counter_content = """<script lang="ts">
   let count: number = 0
   const increment = () => {
     count += 1
@@ -140,12 +168,12 @@ export default {
   count is {count}
 </button>"""
 
-    os.makedirs(os.path.join(full_path, 'src', 'lib'), exist_ok=True)
-    with open(os.path.join(full_path, 'src', 'lib', 'Counter.svelte'), 'w') as f:
-        f.write(counter_content)
+        os.makedirs(os.path.join(full_path, 'src', 'lib'), exist_ok=True)
+        with open(os.path.join(full_path, 'src', 'lib', 'Counter.svelte'), 'w') as f:
+            f.write(counter_content)
 
-    # Create README
-    readme_content = f"""# {folder_name}
+        # Create README
+        readme_content = f"""# {folder_name}
 
 SvelteKit + TypeScript project initialized by Scripty
 
@@ -173,10 +201,13 @@ SvelteKit + TypeScript project initialized by Scripty
 - Vite for fast development
 """
 
-    with open(os.path.join(full_path, 'README.md'), 'w') as f:
-        f.write(readme_content)
+        with open(os.path.join(full_path, 'README.md'), 'w') as f:
+            f.write(readme_content)
 
-    return True
+        return True
+    except Exception as e:
+        print(f"Error setting up SvelteKit project: {e}")
+        return False
 
 async def func(args):
     """Handler function for SvelteKit project setup"""
@@ -193,7 +224,7 @@ async def func(args):
                 "error": "Folder name is required"
             })
             
-        if setup_sveltekit(path, folder_name):
+        if setup_sveltekit(folder_name):
             return json.dumps({
                 "success": True,
                 "message": f"SvelteKit project created successfully in {folder_name}"
@@ -216,11 +247,6 @@ object = {
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Directory path where the project should be created",
-                "default": os.path.expanduser("~")
-            },
             "folder_name": {
                 "type": "string",
                 "description": "Name of the project folder",

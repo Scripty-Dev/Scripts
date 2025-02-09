@@ -200,9 +200,6 @@ object = {
     }
 }
 
-# Required modules
-modules = ['python-jobspy', 'pandas', 'requests']
-
 async def func(args):
     """Handler function for the API"""
     try:

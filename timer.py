@@ -424,5 +424,3 @@ object = {
         "required": ["command"]
     }
 }
-
-modules = ['customtkinter', 'plyer', 'python-dateutil']

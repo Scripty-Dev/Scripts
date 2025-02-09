@@ -82,5 +82,3 @@ object = {
         ]
     }
 }
-
-modules = ['comtypes', 'pycaw'] if PLATFORM == "windows" else []

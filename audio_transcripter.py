@@ -99,5 +99,3 @@ Examples:
         }
     }
 }
-
-modules = ['requests']

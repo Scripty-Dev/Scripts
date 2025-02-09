@@ -436,5 +436,3 @@ object = {
         "required": ["command"]
     }
 }
-
-modules = ['customtkinter']

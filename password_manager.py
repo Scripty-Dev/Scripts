@@ -277,5 +277,3 @@ object = {
         "required": ["command"]
     }
 }
-
-modules = ['customtkinter', 'cryptography', 'pyperclip']

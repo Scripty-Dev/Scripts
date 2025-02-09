@@ -197,4 +197,3 @@ object = {
     }
 }
 
-modules = ['sounddevice', 'soundfile', 'numpy']

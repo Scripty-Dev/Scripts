@@ -179,5 +179,3 @@ object = {
         "required": ["filename"]
     }
 }
-
-modules = ['Pillow']
